@@ -17,6 +17,13 @@ class Venu3FaceView extends WatchUi.WatchFace {
     const GRAPH_HOURS = 4;
     const GRAPH_BARS = 40;
 
+    // Pixel sizes of the scalable time fonts
+    const TIME_FONT_SIZE = 195;
+    const SECONDS_FONT_SIZE = 72;
+
+    // Fraction of the font's line height covered above (and below) the center by digit glyphs
+    const GLYPH_HALF = 0.3;
+
     const COLOR_MODERATE = 0xFFAA00;
     const COLOR_VIGOROUS = 0xFF3300;
     const COLOR_HR = 0xFF2255;
@@ -61,71 +68,144 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
 
         var activity = ActivityMonitor.getInfo();
-        var weekGoal = activity.activeMinutesWeekGoal;
-        if (weekGoal == null || weekGoal <= 0) {
-            weekGoal = 150;
-        }
-
-        drawWeeklyRing(dc, cx, cy, activity, weekGoal);
-        drawWeather(dc, cx, h * 0.085, h * 0.15);
-
         var accent = getAccentColor();
+
+        drawWeather(dc, cx, h * 0.09);
+
+        // Heart rate graph across the top
+        var graphW = 250;
+        var graphH = 34;
+        drawGraph(dc, cx - graphW / 2, (h * 0.15).toNumber(), graphW, graphH, _hrBars, false);
 
         // Date, e.g. "SAT 22 NOV"
         var info = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
         var dateStr = Lang.format("$1$ $2$ $3$", [info.day_of_week, info.day, info.month]).toUpper();
         dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.21, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(cx, h * 0.275, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        drawTime(dc, cx, (h * 0.38).toNumber(), timeStr, accent);
+        drawTime(dc, cx, (h * 0.455).toNumber(), timeStr, clock.sec, accent);
 
-        // Heart rate and calories
-        var statsY = h * 0.545;
+        drawStats(dc, cx, h * 0.63, activity);
+
+        // Stress graph across the bottom, latest value beside it
+        var stressY = (h * 0.68).toNumber();
+        var stress = drawGraph(dc, cx - graphW / 2, stressY, graphW, graphH, _stressBars, true);
+        if (stress != null) {
+            dc.setColor(getStressColor(stress), Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx + graphW / 2 + 6, stressY + graphH / 2, Graphics.FONT_XTINY, stress.toString(),
+                Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+        }
+
+        drawIntensity(dc, cx, (h * 0.80).toNumber(), activity);
+    }
+
+    // Heart rate on the left, battery in the middle, calories on the right
+    private function drawStats(dc as Dc, cx as Number, y as Numeric, activity as ActivityMonitor.Info) as Void {
+        var vcenter = Graphics.TEXT_JUSTIFY_VCENTER;
+
         dc.setColor(COLOR_HR, Graphics.COLOR_TRANSPARENT);
-        drawHeart(dc, cx - 95, statsY, 9);
+        drawHeart(dc, cx - 150, y, 9);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx - 78, statsY, Graphics.FONT_TINY, getHeartRateString(), Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(cx - 134, y, Graphics.FONT_TINY, getHeartRateString(), Graphics.TEXT_JUSTIFY_LEFT | vcenter);
+
+        drawBattery(dc, cx, y);
+
         var calories = activity.calories;
-        dc.drawText(cx + 20, statsY, Graphics.FONT_TINY, (calories != null ? calories.toString() : "--"), Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+        var kcalRight = cx + 160;
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx + 20 + dc.getTextWidthInPixels((calories != null ? calories.toString() : "--") + " ", Graphics.FONT_TINY), statsY + 3,
-            Graphics.FONT_XTINY, "kcal", Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(kcalRight, y + 3, Graphics.FONT_XTINY, "kcal", Graphics.TEXT_JUSTIFY_RIGHT | vcenter);
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(kcalRight - dc.getTextWidthInPixels("kcal ", Graphics.FONT_XTINY), y, Graphics.FONT_TINY,
+            (calories != null ? calories.toString() : "--"), Graphics.TEXT_JUSTIFY_RIGHT | vcenter);
+    }
 
-        // Heart rate and stress graphs
-        var graphW = 150;
-        var graphH = 38;
-        var graphY = (h * 0.61).toNumber();
-        drawGraph(dc, cx - graphW - 8, graphY, graphW, graphH, _hrBars, false, "HR");
-        drawGraph(dc, cx + 8, graphY, graphW, graphH, _stressBars, true, "STRESS");
+    // Battery outline with a colored fill level, then the percentage
+    private function drawBattery(dc as Dc, cx as Number, y as Numeric) as Void {
+        var pct = System.getSystemStats().battery;
+        var color = pct > 50 ? 0x00CC44 : (pct > 20 ? 0xFFCC00 : 0xFF2200);
+        var bw = 30;
+        var bh = 16;
+        var bx = cx - 38;
+        var by = y - bh / 2;
 
-        drawTodayIntensity(dc, cx, h * 0.775, activity.activeMinutesDay, weekGoal);
+        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(2);
+        dc.drawRoundedRectangle(bx, by, bw, bh, 3);
+        dc.setPenWidth(1);
+        dc.fillRectangle(bx + bw, by + 4, 3, bh - 8);
+
+        var fillW = ((bw - 6) * pct / 100).toNumber();
+        if (fillW > 0) {
+            dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+            dc.fillRectangle(bx + 3, by + 3, fillW, bh - 6);
+        }
+
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(bx + bw + 8, y, Graphics.FONT_XTINY, pct.toNumber() + "%", Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
     // ---------------------------------------------------------------- Time
 
-    // Large time with a drop shadow and a vertical gradient from white into the accent color.
-    // The gradient is made by drawing the text once per horizontal band, clipped to that band.
-    private function drawTime(dc as Dc, cx as Number, cy as Number, timeStr as String, accent as Number) as Void {
-        var font = Graphics.FONT_NUMBER_THAI_HOT;
-        var justify = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+    // Large time with a drop shadow and a vertical gradient from white into the accent color,
+    // with smaller seconds to the right. The gradient is made by drawing the text once per
+    // horizontal band, clipped to that band.
+    private function drawTime(dc as Dc, cx as Number, cy as Number, timeStr as String, sec as Number, accent as Number) as Void {
+        loadTimeFonts();
+        var font = _timeFont as Graphics.FontType;
+        var secFont = _secondsFont as Graphics.FontType;
+        var justify = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
+        var secStr = sec.format("%02d");
+
         var fh = dc.getFontHeight(font);
         var tw = dc.getTextWidthInPixels(timeStr, font);
+        var sw = dc.getTextWidthInPixels(secStr, secFont);
+        var secGap = 4;
+        var left = cx - (tw + secGap + sw) / 2;
 
         dc.setColor(blendColor(accent, 0x000000, 0.65), Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx + 4, cy + 4, font, timeStr, justify);
+        dc.drawText(left + 4, cy + 4, font, timeStr, justify);
 
         // Digits only fill the middle part of the font's line height
-        var glyphTop = cy - fh * 0.3;
-        var glyphH = fh * 0.6;
+        var glyphTop = cy - fh * GLYPH_HALF;
+        var glyphH = fh * 2 * GLYPH_HALF;
         var band = 4;
         for (var y = cy - fh / 2; y < cy + fh / 2; y += band) {
             var t = (y - glyphTop) / glyphH;
             t = t < 0 ? 0.0 : (t > 1 ? 1.0 : t);
-            dc.setClip(cx - tw / 2 - 2, y, tw + 4, band);
+            dc.setClip(left - 2, y, tw + 4, band);
             dc.setColor(blendColor(0xFFFFFF, accent, t.toFloat()), Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, cy, font, timeStr, justify);
+            dc.drawText(left, cy, font, timeStr, justify);
         }
         dc.clearClip();
+
+        // Seconds share the baseline of the big digits
+        var sfh = dc.getFontHeight(secFont);
+        var secY = cy + fh * GLYPH_HALF - sfh * GLYPH_HALF;
+        dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(left + tw + secGap, secY, secFont, secStr, justify);
+    }
+
+    // Scaled-up versions of the system number font, bigger than any built-in size.
+    // Fall back to built-in fonts on devices without scalable fonts.
+    private var _timeFont as Graphics.FontType? = null;
+    private var _secondsFont as Graphics.FontType? = null;
+
+    private function loadTimeFonts() as Void {
+        if (_timeFont != null) {
+            return;
+        }
+        _timeFont = Graphics.FONT_NUMBER_THAI_HOT;
+        _secondsFont = Graphics.FONT_NUMBER_MILD;
+        if (Graphics has :getVectorFont) {
+            var vf = Graphics.getVectorFont({:face => "YantramanavRegular", :size => TIME_FONT_SIZE});
+            if (vf != null) {
+                _timeFont = vf;
+            }
+            var sf = Graphics.getVectorFont({:face => "YantramanavRegular", :size => SECONDS_FONT_SIZE});
+            if (sf != null) {
+                _secondsFont = sf;
+            }
+        }
     }
 
     // ---------------------------------------------------------------- Low power
@@ -143,14 +223,16 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
     // ---------------------------------------------------------------- Weather
 
-    private function drawWeather(dc as Dc, cx as Number, iconY as Numeric, windY as Numeric) as Void {
+    // One row: icon, temperature, wind
+    private function drawWeather(dc as Dc, cx as Number, y as Numeric) as Void {
         if (!(Toybox has :Weather)) {
             return;
         }
+        var vcenter = Graphics.TEXT_JUSTIFY_VCENTER;
         var cond = Weather.getCurrentConditions();
         if (cond == null) {
             dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, iconY, Graphics.FONT_XTINY, "NO WEATHER", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            dc.drawText(cx, y, Graphics.FONT_XTINY, "NO WEATHER", Graphics.TEXT_JUSTIFY_CENTER | vcenter);
             return;
         }
 
@@ -165,27 +247,40 @@ class Venu3FaceView extends WatchUi.WatchFace {
             tempStr = Math.round(temp).toNumber().toString() + "°";
         }
 
-        drawWeatherIcon(dc, cx - 40, iconY, 20, getWeatherKind(cond.condition));
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx - 10, iconY, Graphics.FONT_TINY, tempStr, Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
-
+        // Wind speed as a bare number, in km/h or mph to match the watch's units
+        var windStr = "--";
         var speed = cond.windSpeed;
         if (speed != null) {
-            var windStr = settings.distanceUnits == System.UNIT_STATUTE
-                ? Math.round(speed * 2.237).toNumber() + " mph"
-                : Math.round(speed * 3.6).toNumber() + " km/h";
-            var bearing = cond.windBearing;
-            if (bearing != null) {
-                windStr = getCompassPoint(bearing) + " " + windStr;
-            }
-            dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, windY, Graphics.FONT_XTINY, windStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            windStr = Math.round(speed * (settings.distanceUnits == System.UNIT_STATUTE ? 2.237 : 3.6)).toNumber().toString();
         }
+
+        // Center the whole row
+        var iconW = 44;
+        var gap = 18;
+        var windIconW = 30;
+        var tempW = dc.getTextWidthInPixels(tempStr, Graphics.FONT_TINY);
+        var windW = dc.getTextWidthInPixels(windStr, Graphics.FONT_TINY);
+        var x = cx - (iconW + tempW + gap + windIconW + windW) / 2;
+
+        drawWeatherIcon(dc, x + 20, y, 18, getWeatherKind(cond.condition));
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x + iconW, y, Graphics.FONT_TINY, tempStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
+
+        var windX = x + iconW + tempW + gap;
+        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+        drawWindIcon(dc, windX, y);
+        dc.drawText(windX + windIconW, y, Graphics.FONT_TINY, windStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
     }
 
-    private function getCompassPoint(bearing as Number) as String {
-        var points = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-        return points[((bearing + 22) % 360) / 45];
+    // Three gusts, the outer two curling at the end
+    private function drawWindIcon(dc as Dc, x as Numeric, y as Numeric) as Void {
+        dc.setPenWidth(3);
+        dc.drawLine(x, y - 7, x + 16, y - 7);
+        dc.drawArc(x + 16, y - 11, 4, Graphics.ARC_COUNTER_CLOCKWISE, 270, 180);
+        dc.drawLine(x + 3, y, x + 22, y);
+        dc.drawLine(x, y + 7, x + 12, y + 7);
+        dc.drawArc(x + 12, y + 11, 4, Graphics.ARC_CLOCKWISE, 90, 180);
+        dc.setPenWidth(1);
     }
 
     // Groups Garmin's many weather conditions into the icons we can draw
@@ -325,8 +420,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
         return bars;
     }
 
+    // Draws the bars and returns the latest value (or null if there is no data)
     private function drawGraph(dc as Dc, x as Number, y as Number, gw as Number, gh as Number,
-            bars as Array<Number?>, isStress as Boolean, label as String) as Void {
+            bars as Array<Number?>, isStress as Boolean) as Number? {
         // HR is auto-scaled to its own range; stress is always 0-100
         var lo = 0;
         var hi = 100;
@@ -350,19 +446,11 @@ class Venu3FaceView extends WatchUi.WatchFace {
             hi += 5;
         }
 
-        // Label with latest value
-        dc.setColor(isStress ? COLOR_MODERATE : COLOR_HR, Graphics.COLOR_TRANSPARENT);
-        var labelX = isStress ? x : x + gw;
-        var justify = isStress ? Graphics.TEXT_JUSTIFY_LEFT : Graphics.TEXT_JUSTIFY_RIGHT;
-        dc.drawText(labelX, y, Graphics.FONT_XTINY,
-            label + " " + (latest != null ? latest.toString() : "--"), justify | Graphics.TEXT_JUSTIFY_VCENTER);
-
-        var top = y + 18;
         dc.setColor(COLOR_TRACK, Graphics.COLOR_TRANSPARENT);
-        dc.drawLine(x, top + gh, x + gw, top + gh);
+        dc.drawLine(x, y + gh, x + gw, y + gh);
 
         if (latest == null || hi <= lo) {
-            return;
+            return null;
         }
 
         var barW = gw.toFloat() / GRAPH_BARS;
@@ -376,8 +464,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
                 barH = 2;
             }
             dc.setColor(isStress ? getStressColor(v) : getHeartRateColor(v), Graphics.COLOR_TRANSPARENT);
-            dc.fillRectangle(x + i * barW, top + gh - barH, barW - 1, barH);
+            dc.fillRectangle(x + i * barW, y + gh - barH, barW - 1, barH);
         }
+        return latest;
     }
 
     // Same bands Garmin uses: rest / low / medium / high
@@ -424,110 +513,67 @@ class Venu3FaceView extends WatchUi.WatchFace {
         return am.moderate + 2 * am.vigorous;
     }
 
-    // Today's total, plus a bar split into moderate and vigorous segments.
-    // The bar is full when today reaches 1/7 of the weekly goal.
-    private function drawTodayIntensity(dc as Dc, cx as Number, y as Numeric,
-            today as ActivityMonitor.ActiveMinutes?, weekGoal as Number) as Void {
-        var moderate = today != null ? today.moderate : 0;
-        var vigorous = today != null ? 2 * today.vigorous : 0;
-        var total = moderate + vigorous;
-
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, y, Graphics.FONT_XTINY, total + " MIN", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-
-        var bw = 160;
-        var bh = 10;
-        var bx = cx - bw / 2;
-        var by = y + 20;
-        var dailyTarget = (weekGoal + 6) / 7;
-
-        dc.setColor(COLOR_TRACK, Graphics.COLOR_TRANSPARENT);
-        dc.fillRoundedRectangle(bx, by, bw, bh, 4);
-
-        var modW = moderate * bw / dailyTarget;
-        if (modW > bw) {
-            modW = bw;
+    // Rolling 7 days: one block per day (today on the right), each filling towards
+    // 1/7 of the weekly goal with moderate then vigorous minutes. Totals underneath.
+    private function drawIntensity(dc as Dc, cx as Number, y as Number, info as ActivityMonitor.Info) as Void {
+        var goal = info.activeMinutesWeekGoal;
+        if (goal == null || goal <= 0) {
+            goal = 150;
         }
-        var vigW = vigorous * bw / dailyTarget;
-        if (modW + vigW > bw) {
-            vigW = bw - modW;
-        }
-        if (modW > 0) {
-            dc.setColor(COLOR_MODERATE, Graphics.COLOR_TRANSPARENT);
-            dc.fillRoundedRectangle(bx, by, modW, bh, 4);
-        }
-        if (vigW > 0) {
-            dc.setColor(COLOR_VIGOROUS, Graphics.COLOR_TRANSPARENT);
-            dc.fillRoundedRectangle(bx + modW + (modW > 0 ? 2 : 0), by, vigW - (modW > 0 ? 2 : 0), bh, 4);
-        }
-    }
+        var dailyTarget = (goal + 6) / 7;
+        var days = getLast7Days(info);
 
-    // Ring around the edge: one segment per day this week, filling towards the weekly goal
-    private function drawWeeklyRing(dc as Dc, cx as Number, cy as Number,
-            info as ActivityMonitor.Info, weekGoal as Number) as Void {
-        var pen = 10;
-        var r = cx - pen / 2 - 2;
-        dc.setPenWidth(pen);
-        dc.setColor(COLOR_TRACK, Graphics.COLOR_TRANSPARENT);
-        dc.drawCircle(cx, cy, r);
+        var blockW = 34;
+        var blockH = 14;
+        var gap = 5;
+        var x = cx - (7 * blockW + 6 * gap) / 2;
+        var total = 0;
 
-        var days = getWeekDays(info);
-        var degPerMin = 360.0 / weekGoal;
-        var angle = 90.0;
-        var remaining = 360.0;
-        var weekTotal = 0;
-
-        for (var i = 0; i < days.size(); i++) {
+        for (var i = 0; i < 7; i++) {
             var am = days[i];
-            weekTotal += weighted(am);
-            // Each day: moderate part then vigorous part, small gap after the day
-            var parts = [[am.moderate, COLOR_MODERATE], [2 * am.vigorous, COLOR_VIGOROUS]];
-            for (var p = 0; p < parts.size(); p++) {
-                var sweep = (parts[p][0] as Number) * degPerMin;
-                if (sweep > remaining) {
-                    sweep = remaining;
+            var bx = x + i * (blockW + gap);
+            dc.setColor(COLOR_TRACK, Graphics.COLOR_TRANSPARENT);
+            dc.fillRoundedRectangle(bx, y, blockW, blockH, 3);
+
+            if (am != null) {
+                total += weighted(am);
+                var modW = am.moderate * blockW / dailyTarget;
+                modW = modW > blockW ? blockW : modW;
+                var vigW = 2 * am.vigorous * blockW / dailyTarget;
+                vigW = modW + vigW > blockW ? blockW - modW : vigW;
+                if (modW > 0) {
+                    dc.setColor(COLOR_MODERATE, Graphics.COLOR_TRANSPARENT);
+                    dc.fillRoundedRectangle(bx, y, modW, blockH, 3);
                 }
-                if (sweep >= 1) {
-                    dc.setColor(parts[p][1] as Number, Graphics.COLOR_TRANSPARENT);
-                    dc.drawArc(cx, cy, r, Graphics.ARC_CLOCKWISE, angle, angle - sweep);
+                if (vigW > 0) {
+                    dc.setColor(COLOR_VIGOROUS, Graphics.COLOR_TRANSPARENT);
+                    dc.fillRoundedRectangle(bx + modW, y, vigW, blockH, 3);
                 }
-                angle -= sweep;
-                remaining -= sweep;
-            }
-            if (weighted(am) > 0 && remaining > 2) {
-                angle -= 2;
-                remaining -= 2;
             }
         }
-        dc.setPenWidth(1);
 
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, cy * 2 * 0.90, Graphics.FONT_XTINY, "WEEK " + weekTotal + "/" + weekGoal,
+        // Outline today's block
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawRoundedRectangle(x + 6 * (blockW + gap) - 2, y - 2, blockW + 4, blockH + 4, 4);
+
+        var today = weighted(info.activeMinutesDay);
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, y + blockH + 22, Graphics.FONT_XTINY, today + " MIN  /  " + total + " OF " + goal,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
-    // Active minutes for each day since the start of the week, oldest first, ending with today
-    private function getWeekDays(info as ActivityMonitor.Info) as Array<ActivityMonitor.ActiveMinutes> {
-        var result = [] as Array<ActivityMonitor.ActiveMinutes>;
-        var today = Gregorian.info(Time.now(), Time.FORMAT_SHORT);
-        var firstDay = System.getDeviceSettings().firstDayOfWeek;
-        var pastDays = ((today.day_of_week as Number) - firstDay + 7) % 7;
-
+    // Active minutes for the last 7 days, oldest first, today last. Missing days are null.
+    private function getLast7Days(info as ActivityMonitor.Info) as Array<ActivityMonitor.ActiveMinutes?> {
+        var days = new Array<ActivityMonitor.ActiveMinutes?>[7];
         var history = ActivityMonitor.getHistory();
         if (history != null) {
-            for (var i = pastDays - 1; i >= 0; i--) {
-                if (i < history.size()) {
-                    var am = history[i].activeMinutes;
-                    if (am != null) {
-                        result.add(am);
-                    }
-                }
+            // history[0] is yesterday
+            for (var i = 0; i < 6 && i < history.size(); i++) {
+                days[5 - i] = history[i].activeMinutes;
             }
         }
-        if (info.activeMinutesDay != null) {
-            result.add(info.activeMinutesDay);
-        }
-        return result;
+        days[6] = info.activeMinutesDay;
+        return days;
     }
 
     // ---------------------------------------------------------------- Helpers
@@ -546,7 +592,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
                 hour = 12;
             }
         }
-        return Lang.format("$1$:$2$", [hour, clock.min.format("%02d")]);
+        return Lang.format("$1$:$2$", [hour.format("%02d"), clock.min.format("%02d")]);
     }
 
     private function getHeartRateString() as String {
