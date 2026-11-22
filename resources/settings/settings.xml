@@ -1,4 +1,11 @@
 <settings>
+    <setting propertyKey="@Properties.ColorMode" title="@Strings.ColorModeTitle">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.ColorModeFixed</listEntry>
+            <listEntry value="1">@Strings.ColorModeRandom</listEntry>
+            <listEntry value="2">@Strings.ColorModeContext</listEntry>
+        </settingConfig>
+    </setting>
     <setting propertyKey="@Properties.StartColor" title="@Strings.StartColorTitle">
         <settingConfig type="list">
             <listEntry value="13430527">@Strings.ColorPaleBlue</listEntry>    <!-- 0xCCEEFF -->

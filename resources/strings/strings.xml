@@ -1,6 +1,11 @@
 <strings>
     <string id="AppName">Venu 3 Face</string>
 
+    <string id="ColorModeTitle">Colour mode</string>
+    <string id="ColorModeFixed">My colours</string>
+    <string id="ColorModeRandom">Random each hour</string>
+    <string id="ColorModeContext">Time, season and weather</string>
+
     <string id="StartColorTitle">Gradient start colour</string>
     <string id="EndColorTitle">Gradient end colour</string>
     <string id="HrGraphStyleTitle">Heart rate graph colours</string>

@@ -91,8 +91,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
 
         var activity = ActivityMonitor.getInfo();
-        _pale = getColorSetting("StartColor", 0xCCEEFF);
-        _accent = getColorSetting("EndColor", 0x00AAFF);
+        applyColorMode(clock);
         _hrGradient = getColorSetting("HrGraphStyle", 0) == 1;
         _stressGradient = getColorSetting("StressGraphStyle", 1) == 1;
         var accent = _accent;
@@ -805,6 +804,90 @@ class Venu3FaceView extends WatchUi.WatchFace {
             return sample.heartRate.toString();
         }
         return "--";
+    }
+
+    // ---------------------------------------------------------------- Colour modes
+
+    // Matching [start, end] gradient pairs used by the random mode
+    private const RANDOM_PAIRS = [
+        [0xCCEEFF, 0x00AAFF], // sky
+        [0xE6D9FF, 0x9944FF], // violet
+        [0xFFD6E8, 0xFF3399], // pink
+        [0xD6FFE0, 0x00CC44], // green
+        [0xFFF4C2, 0xFF7700], // sunset
+        [0xFFE0CC, 0xFF2244], // ember
+        [0xCCEEFF, 0x00CCB3], // teal
+        [0xFFFFFF, 0x0055FF]  // deep blue
+    ];
+
+    // Sets _pale and _accent from the colour mode setting:
+    // 0 = the chosen start/end colours, 1 = a random pair each hour,
+    // 2 = following the time of day, season and weather
+    private function applyColorMode(clock as System.ClockTime) as Void {
+        var mode = getColorSetting("ColorMode", 0);
+        var pair = null;
+        if (mode == 1) {
+            pair = getRandomPair(clock);
+        } else if (mode == 2) {
+            pair = getContextPair(clock);
+        }
+        if (pair != null) {
+            _pale = pair[0] as Number;
+            _accent = pair[1] as Number;
+        } else {
+            _pale = getColorSetting("StartColor", 0xCCEEFF);
+            _accent = getColorSetting("EndColor", 0x00AAFF);
+        }
+    }
+
+    // Same pair for the whole hour, so it doesn't flicker between redraws
+    private function getRandomPair(clock as System.ClockTime) as Array {
+        var info = Gregorian.info(Time.now(), Time.FORMAT_SHORT);
+        Math.srand(((info.year * 13 + (info.month as Number)) * 32 + info.day) * 24 + clock.hour);
+        return RANDOM_PAIRS[Math.rand() % RANDOM_PAIRS.size()] as Array;
+    }
+
+    private function getContextPair(clock as System.ClockTime) as Array {
+        var hour = clock.hour;
+        if (hour >= 21 || hour < 5) {
+            return [0xE6D9FF, 0x0055FF]; // night
+        }
+
+        var cond = (Toybox has :Weather) ? Weather.getCurrentConditions() : null;
+        var kind = cond != null ? getWeatherKind(cond.condition) : :cloud;
+        if (kind == :storm) {
+            return [0xE6D9FF, 0x9944FF];
+        } else if (kind == :rain) {
+            return [0xCCEEFF, 0x0055FF];
+        } else if (kind == :snow) {
+            return [0xFFFFFF, 0x00AAFF];
+        }
+
+        if (hour < 8) {
+            return [0xFFE0CC, 0xFF7700]; // dawn
+        } else if (hour >= 18) {
+            return [0xFFD6E8, 0xFF3399]; // evening
+        } else if (kind == :cloud) {
+            return [0xCCEEFF, 0x00AAFF];
+        }
+
+        // A sunny or partly cloudy day follows the season. Seasons are flipped
+        // south of the equator, using the weather report's location.
+        var month = Gregorian.info(Time.now(), Time.FORMAT_SHORT).month as Number;
+        if (cond != null) {
+            var loc = cond.observationLocationPosition;
+            if (loc != null && loc.toDegrees()[0] < 0) {
+                month = (month + 5) % 12 + 1;
+            }
+        }
+        if (month >= 3 && month <= 5) {
+            return [0xD6FFE0, 0x00CC44]; // spring
+        } else if (month >= 6 && month <= 8) {
+            return [0xFFF4C2, 0xFF7700]; // summer
+        } else if (month >= 9 && month <= 11) {
+            return [0xFFE0CC, 0xFF2244]; // autumn
+        }
+        return [0xFFFFFF, 0x00AAFF]; // winter
     }
 
     private function getColorSetting(key as String, fallback as Number) as Number {
