@@ -19,10 +19,11 @@ class Venu3FaceView extends WatchUi.WatchFace {
     const HR_BARS = 40;
     const STRESS_BARS = 28;
 
-    // Height in pixels of every icon in the top row
-    const ICON_H = 24;
+    // Height in pixels of every icon in the icon row, and that row's text size
+    const ICON_H = 28;
+    const ROW_FONT_SIZE = 34;
 
-    // Every piece of text except the clock uses one scalable font at this pixel size
+    // Other text (month, date) uses one scalable font at this pixel size
     const TEXT_FONT_SIZE = 30;
 
     // Pixel sizes of the scalable time fonts
@@ -303,19 +304,32 @@ class Venu3FaceView extends WatchUi.WatchFace {
     private var _secondsFont as Graphics.FontType? = null;
 
     private var _textFont as Graphics.FontType? = null;
+    private var _rowFont as Graphics.FontType? = null;
 
     // The shared text font, falling back to the built-in "tiny" size
     private function textFont() as Graphics.FontType {
         if (_textFont == null) {
-            _textFont = Graphics.FONT_TINY;
-            if (Graphics has :getVectorFont) {
-                var tf = Graphics.getVectorFont({:face => "RobotoRegular", :size => TEXT_FONT_SIZE});
-                if (tf != null) {
-                    _textFont = tf;
-                }
-            }
+            _textFont = loadFont(TEXT_FONT_SIZE, Graphics.FONT_TINY);
         }
         return _textFont as Graphics.FontType;
+    }
+
+    // The larger icon-row font, falling back to the built-in "small" size
+    private function rowFont() as Graphics.FontType {
+        if (_rowFont == null) {
+            _rowFont = loadFont(ROW_FONT_SIZE, Graphics.FONT_SMALL);
+        }
+        return _rowFont as Graphics.FontType;
+    }
+
+    private function loadFont(size as Number, fallback as Graphics.FontType) as Graphics.FontType {
+        if (Graphics has :getVectorFont) {
+            var vf = Graphics.getVectorFont({:face => "RobotoRegular", :size => size});
+            if (vf != null) {
+                return vf;
+            }
+        }
+        return fallback;
     }
 
     private function loadTimeFonts() as Void {
@@ -378,11 +392,11 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var calStr = formatCalories(Config.DEMO ? Demo.CALORIES : activity.calories);
 
         // Each item is an icon of a fixed width followed by its text
-        var font = textFont();
+        var font = rowFont();
         var kinds = [:weather, :wind, :heart, :bolt];
-        var iconWs = [32, 26, 32, 18];
+        var iconWs = [37, 31, 37, 21];
         var texts = [tempStr, windStr, hrStr, calStr];
-        var itemGap = 16;
+        var itemGap = 13;
 
         var total = itemGap * (kinds.size() - 1);
         for (var i = 0; i < kinds.size(); i++) {
@@ -393,13 +407,13 @@ class Venu3FaceView extends WatchUi.WatchFace {
         for (var i = 0; i < kinds.size(); i++) {
             var kind = kinds[i];
             if (kind == :weather) {
-                drawWeatherIcon(dc, x + 13, y + 2, ICON_H / 2, weatherKind);
+                drawWeatherIcon(dc, x + 15, y + 3, ICON_H / 2, weatherKind);
             } else if (kind == :wind) {
                 drawGradientIcon(dc, :wind, x, y, ICON_H / 2 + 1);
             } else if (kind == :heart) {
-                drawGradientIcon(dc, :heart, x + 13, y, ICON_H / 2 + 1);
+                drawGradientIcon(dc, :heart, x + 15, y, ICON_H / 2 + 1);
             } else {
-                drawGradientIcon(dc, :bolt, x + 7, y, ICON_H / 2 + 1);
+                drawGradientIcon(dc, :bolt, x + 8, y, ICON_H / 2 + 1);
             }
             x += iconWs[i];
             dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
