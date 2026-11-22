@@ -8,4 +8,12 @@
     <!-- Graph colouring: 0 = coloured zones, 1 = match the gradient -->
     <property id="HrGraphStyle" type="number">0</property>
     <property id="StressGraphStyle" type="number">1</property>
+    <!-- Heart rate colour range: 0 = custom values below, 1 = my Garmin heart rate zones -->
+    <property id="HrRangeSource" type="number">0</property>
+    <property id="HrLow" type="number">60</property>
+    <property id="HrHigh" type="number">120</property>
+    <!-- Stress band cut-offs: rest / low / medium (above medium is high) -->
+    <property id="StressRest" type="number">25</property>
+    <property id="StressLow" type="number">50</property>
+    <property id="StressMedium" type="number">75</property>
 </properties>

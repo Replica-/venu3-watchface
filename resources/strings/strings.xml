@@ -29,4 +29,13 @@
     <string id="ColorRed">Red</string>
     <string id="ColorPink">Pink</string>
     <string id="ColorPurple">Purple</string>
+
+    <string id="HrRangeSourceTitle">Heart rate colour range</string>
+    <string id="HrRangeCustom">Custom (values below)</string>
+    <string id="HrRangeZones">My Garmin heart rate zones</string>
+    <string id="HrLowTitle">Heart rate: green at or below (bpm)</string>
+    <string id="HrHighTitle">Heart rate: red at, purple above (bpm)</string>
+    <string id="StressRestTitle">Stress: rest up to</string>
+    <string id="StressLowTitle">Stress: low up to</string>
+    <string id="StressMediumTitle">Stress: medium up to</string>
 </strings>

@@ -8,6 +8,7 @@ import Toybox.SensorHistory;
 import Toybox.System;
 import Toybox.Time;
 import Toybox.Time.Gregorian;
+import Toybox.UserProfile;
 import Toybox.Weather;
 import Toybox.WatchUi;
 
@@ -51,6 +52,14 @@ class Venu3FaceView extends WatchUi.WatchFace {
     // true = the face's gradient colours
     private var _hrGradient as Boolean = false;
     private var _stressGradient as Boolean = true;
+
+    // Colour ranges, from the watch face settings. Heart rate: green at or below _hrLow,
+    // red at _hrHigh, purple above. Stress bands: rest / low / medium / high.
+    private var _hrLow as Number = 60;
+    private var _hrHigh as Number = 120;
+    private var _stressRest as Number = 25;
+    private var _stressLow as Number = 50;
+    private var _stressMedium as Number = 75;
 
     // True while the watch is in always-on (low power) mode
     private var _isLowPower as Boolean = false;
@@ -133,6 +142,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         applyColorMode(clock);
         _hrGradient = getColorSetting("HrGraphStyle", 0) == 1;
         _stressGradient = getColorSetting("StressGraphStyle", 1) == 1;
+        loadRanges();
         var accent = _accent;
 
         drawBorder(dc, cx, cy, accent);
@@ -711,39 +721,71 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
     }
 
-    // Coloured zones use the same bands Garmin does (rest / low / medium / high). In gradient
-    // mode it is pale when calm, shading to the full end colour at stress 100.
+    // Reads the heart rate and stress colour ranges from settings. Heart rate can come from
+    // the user's Garmin heart rate zones instead: green at the top of zone 1, red at the
+    // top of zone 4, purple in zone 5. Ranges that don't make sense fall back to defaults.
+    private function loadRanges() as Void {
+        _hrLow = getColorSetting("HrLow", 60);
+        _hrHigh = getColorSetting("HrHigh", 120);
+        if (getColorSetting("HrRangeSource", 0) == 1 && Toybox has :UserProfile) {
+            var zones = UserProfile.getHeartRateZones(UserProfile.HR_ZONE_SPORT_GENERIC);
+            if (zones != null && zones.size() >= 5) {
+                _hrLow = zones[1];
+                _hrHigh = zones[4];
+            }
+        }
+        if (_hrLow >= _hrHigh) {
+            _hrLow = 60;
+            _hrHigh = 120;
+        }
+
+        _stressRest = getColorSetting("StressRest", 25);
+        _stressLow = getColorSetting("StressLow", 50);
+        _stressMedium = getColorSetting("StressMedium", 75);
+        if (!(_stressRest < _stressLow && _stressLow < _stressMedium)) {
+            _stressRest = 25;
+            _stressLow = 50;
+            _stressMedium = 75;
+        }
+    }
+
+    // Coloured zones use bands like Garmin's (rest / low / medium / high). In gradient mode
+    // it is pale at the rest level and below, shading to the full end colour at medium.
     private function getStressColor(v as Number) as Number {
         if (_stressGradient) {
-            return blendColor(_pale, _accent, v / 100.0);
+            return blendColor(_pale, _accent, clamp01((v - _stressRest).toFloat() / (_stressMedium - _stressRest)));
         }
-        if (v <= 25) {
+        if (v <= _stressRest) {
             return 0x3399FF;
-        } else if (v <= 50) {
+        } else if (v <= _stressLow) {
             return 0xFFB366;
-        } else if (v <= 75) {
+        } else if (v <= _stressMedium) {
             return 0xFF8000;
         }
         return 0xFF4D00;
     }
 
-    // Gradient from green (60 bpm and below) through yellow (90) to red (120); purple above 120
+    // Green at or below the low value, through yellow halfway, to red at the high value;
+    // purple above it. In gradient mode, start colour at low through to end colour at high.
     private function getHeartRateColor(v as Number) as Number {
+        var t = (v - _hrLow).toFloat() / (_hrHigh - _hrLow);
         if (_hrGradient) {
-            // Start colour at 60 bpm and below, end colour at 120 and above
-            var t = (v - 60) / 60.0;
-            return blendColor(_pale, _accent, t < 0 ? 0.0 : (t > 1 ? 1.0 : t));
+            return blendColor(_pale, _accent, clamp01(t));
         }
-        if (v > 120) {
+        if (v > _hrHigh) {
             return 0xAA33FF;
         }
-        if (v <= 60) {
+        if (t <= 0) {
             return 0x00CC44;
         }
-        if (v <= 90) {
-            return blendColor(0x00CC44, 0xFFCC00, (v - 60) / 30.0);
+        if (t <= 0.5) {
+            return blendColor(0x00CC44, 0xFFCC00, t * 2);
         }
-        return blendColor(0xFFCC00, 0xFF2200, (v - 90) / 30.0);
+        return blendColor(0xFFCC00, 0xFF2200, (t - 0.5) * 2);
+    }
+
+    private function clamp01(t as Float) as Float {
+        return t < 0 ? 0.0 : (t > 1 ? 1.0 : t);
     }
 
     // Linear blend between two RGB colors, t from 0.0 (a) to 1.0 (b)

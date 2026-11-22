@@ -25,6 +25,8 @@ Replica puts everything you check most on one clean, glanceable screen, wrapped 
 - Choose the gradient start and end colours
 - Colour mode: your colours, a new colour pair every hour, or colours that follow the time of day, season and weather
 - Show the graphs in coloured zones or in your gradient colours
+- Tailor the heart rate colours to your own range, or use your Garmin heart rate zones
+- Adjust the stress level bands
 
 **Battery friendly**
 - Most of the face is drawn once a minute; only the seconds update while you're looking at it

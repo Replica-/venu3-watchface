@@ -41,4 +41,25 @@
             <listEntry value="1">@Strings.GraphGradient</listEntry>
         </settingConfig>
     </setting>
+    <setting propertyKey="@Properties.HrRangeSource" title="@Strings.HrRangeSourceTitle">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.HrRangeCustom</listEntry>
+            <listEntry value="1">@Strings.HrRangeZones</listEntry>
+        </settingConfig>
+    </setting>
+    <setting propertyKey="@Properties.HrLow" title="@Strings.HrLowTitle">
+        <settingConfig type="numeric" min="30" max="220"/>
+    </setting>
+    <setting propertyKey="@Properties.HrHigh" title="@Strings.HrHighTitle">
+        <settingConfig type="numeric" min="30" max="220"/>
+    </setting>
+    <setting propertyKey="@Properties.StressRest" title="@Strings.StressRestTitle">
+        <settingConfig type="numeric" min="0" max="100"/>
+    </setting>
+    <setting propertyKey="@Properties.StressLow" title="@Strings.StressLowTitle">
+        <settingConfig type="numeric" min="0" max="100"/>
+    </setting>
+    <setting propertyKey="@Properties.StressMedium" title="@Strings.StressMediumTitle">
+        <settingConfig type="numeric" min="0" max="100"/>
+    </setting>
 </settings>
