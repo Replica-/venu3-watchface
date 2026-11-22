@@ -60,30 +60,69 @@ class Venu3FaceView extends WatchUi.WatchFace {
     private var _hrBars as Array<Number?> = [] as Array<Number?>;
     private var _stressBars as Array<Number?> = [] as Array<Number?>;
 
+    // Everything except the seconds only changes once a minute, so it is drawn into
+    // this off-screen image once a minute; each second just copies it to the screen
+    // and draws the seconds on top. Rebuilt when the minute changes or settings change.
+    private var _frame as Graphics.BufferedBitmapReference? = null;
+    private var _frameMinute as Number = -1;
+
+    // Where the seconds go, worked out when the frame is drawn
+    private var _secX as Number = 0;
+    private var _secY as Number = 0;
+
     function initialize() {
         WatchFace.initialize();
     }
 
-    function onUpdate(dc as Dc) as Void {
-        var w = dc.getWidth();
-        var h = dc.getHeight();
-        var cx = w / 2;
-        var cy = h / 2;
+    // Called by the app when settings change, so the next update redraws everything
+    function invalidate() as Void {
+        _frameMinute = -1;
+    }
 
+    function onUpdate(dc as Dc) as Void {
+        var clock = System.getClockTime();
+
+        if (_isLowPower) {
+            prepare(dc);
+            drawLowPower(dc, getTimeString(clock), clock.min, dc.getWidth() / 2, dc.getHeight() / 2);
+            return;
+        }
+
+        if (_frame == null && Graphics has :createBufferedBitmap) {
+            _frame = Graphics.createBufferedBitmap({:width => dc.getWidth(), :height => dc.getHeight()});
+        }
+
+        var minute = clock.hour * 60 + clock.min;
+        var frame = _frame != null ? _frame.get() : null;
+        if (frame == null) {
+            // No off-screen image available: draw everything straight to the screen
+            drawFrame(dc, clock);
+        } else {
+            if (minute != _frameMinute) {
+                drawFrame((frame as Graphics.BufferedBitmap).getDc(), clock);
+                _frameMinute = minute;
+            }
+            dc.drawBitmap(0, 0, frame as Graphics.BufferedBitmap);
+        }
+
+        drawSeconds(dc, clock.sec);
+    }
+
+    private function prepare(dc as Dc) as Void {
         if (dc has :setAntiAlias) {
             dc.setAntiAlias(true);
         }
-
         dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
         dc.clear();
+    }
 
-        var clock = System.getClockTime();
+    // Draws everything except the seconds
+    private function drawFrame(dc as Dc, clock as System.ClockTime) as Void {
+        prepare(dc);
+        var h = dc.getHeight();
+        var cx = dc.getWidth() / 2;
+        var cy = h / 2;
         var timeStr = getTimeString(clock);
-
-        if (_isLowPower) {
-            drawLowPower(dc, timeStr, clock.min, cx, cy);
-            return;
-        }
 
         if (clock.min != _graphMinute) {
             refreshGraphs();
@@ -105,7 +144,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         drawDivider(dc, cx, h * 0.335, 120, accent);
 
         // Time sits in the exact center of the screen
-        drawTime(dc, cx, cy, timeStr, clock.sec, clock.hour, accent);
+        drawTime(dc, cx, cy, timeStr, clock.hour, accent);
 
         drawDivider(dc, cx, h * 0.665, 140, accent);
 
@@ -225,19 +264,20 @@ class Venu3FaceView extends WatchUi.WatchFace {
     // ---------------------------------------------------------------- Time
 
     // Large gradient time. To its right, a narrow column: AM/PM on top (12-hour mode
-    // only), smaller gradient seconds at the bottom.
-    private function drawTime(dc as Dc, cx as Number, cy as Number, timeStr as String, sec as Number,
+    // only) and the seconds at the bottom. The seconds are drawn separately each second
+    // by drawSeconds; this works out where they go.
+    private function drawTime(dc as Dc, cx as Number, cy as Number, timeStr as String,
             hour as Number, accent as Number) as Void {
         loadTimeFonts();
         var font = _timeFont as Graphics.FontType;
         var secFont = _secondsFont as Graphics.FontType;
         var ampmFont = _ampmFont as Graphics.FontType;
-        var secStr = sec.format("%02d");
         var ampmStr = System.getDeviceSettings().is24Hour ? "" : (hour < 12 ? "AM" : "PM");
 
         var fh = dc.getFontHeight(font);
         var tw = dc.getTextWidthInPixels(timeStr, font);
-        var sw = dc.getTextWidthInPixels(secStr, secFont);
+        // A fixed width for the seconds, so the layout doesn't shift as they tick
+        var sw = dc.getTextWidthInPixels("00", secFont);
         var aw = dc.getTextWidthInPixels(ampmStr, ampmFont);
         var colW = sw > aw ? sw : aw;
         var secGap = 6;
@@ -261,12 +301,23 @@ class Venu3FaceView extends WatchUi.WatchFace {
             drawGradientText(dc, colX + 1, ampmY, ampmFont, ampmStr, aw, accent, 2);
         }
 
-        // Seconds sit on the same baseline as the big digits
+        // Seconds sit on the same baseline as the big digits, right-aligned with the
+        // column (the right edge of AM/PM)
         var sfh = dc.getFontHeight(secFont);
-        var secY = (baseline - Graphics.getFontAscent(secFont) + sfh / 2).toNumber();
-        // Right-aligned with the column (the right edge of AM/PM). The space each font
-        // leaves after its last character varies a pixel or two by digit.
-        drawGradientText(dc, colX + colW - sw, secY, secFont, secStr, sw, accent, 2);
+        _secY = (baseline - Graphics.getFontAscent(secFont) + sfh / 2).toNumber();
+        _secX = colX + colW;
+    }
+
+    // The seconds, drawn straight to the screen every second
+    private function drawSeconds(dc as Dc, sec as Number) as Void {
+        loadTimeFonts();
+        var secFont = _secondsFont as Graphics.FontType;
+        var secStr = sec.format("%02d");
+        var sw = dc.getTextWidthInPixels(secStr, secFont);
+        if (dc has :setAntiAlias) {
+            dc.setAntiAlias(true);
+        }
+        drawGradientText(dc, _secX - sw, _secY, secFont, secStr, sw, _accent, 2);
     }
 
     // Month and date on one line, e.g. "NOV 22", in one gradient from pale at the
