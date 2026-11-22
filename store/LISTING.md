@@ -54,8 +54,9 @@ Free
 
 - `icon-512.png` – store icon
 - `hero-1440x720.png` – hero banner
+- `cover-500.png` – cover image (500 x 500, store limit 300 KB)
 - `screenshot-0.png` – default colours (pale blue to sky blue)
 - `screenshot-1.png` – a green pair from the random colour mode
 - `screenshot-2.png` – autumn colours from the time, season and weather mode
 
-Screenshots come from the demo build (sample data) in the simulator.
+Screenshots come from the demo build (sample data) in the simulator. Screen images must be under 150 KB each.
