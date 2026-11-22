@@ -71,6 +71,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var activity = ActivityMonitor.getInfo();
         var accent = getAccentColor();
 
+        drawBorder(dc, cx, cy, accent);
+
         drawWeather(dc, cx, h * 0.09);
 
         // Heart rate graph across the top
@@ -104,6 +106,27 @@ class Venu3FaceView extends WatchUi.WatchFace {
         drawDivider(dc, cx, h * 0.79, 110, accent);
 
         drawIntensity(dc, cx, (h * 0.815).toNumber(), activity);
+    }
+
+    // Accent ring around the edge with a faint inner ring and diamonds at 12, 3, 6 and 9
+    private function drawBorder(dc as Dc, cx as Number, cy as Number, accent as Number) as Void {
+        var r = cx - 4;
+        dc.setPenWidth(3);
+        dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
+        dc.drawCircle(cx, cy, r);
+        dc.setPenWidth(1);
+        dc.setColor(blendColor(accent, 0x000000, 0.6), Graphics.COLOR_TRANSPARENT);
+        dc.drawCircle(cx, cy, r - 7);
+
+        dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
+        var d = r - 4;
+        var s = 6;
+        var points = [[cx, cy - d], [cx + d, cy], [cx, cy + d], [cx - d, cy]];
+        for (var i = 0; i < points.size(); i++) {
+            var px = points[i][0];
+            var py = points[i][1];
+            dc.fillPolygon([[px, py - s], [px + s, py], [px, py + s], [px - s, py]]);
+        }
     }
 
     // Thin line that fades out towards both ends, with a small diamond in the middle
