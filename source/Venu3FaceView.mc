@@ -111,7 +111,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var stressLeft = hrLeft + (HR_BARS - STRESS_BARS) / 2 * slotW;
         drawGraph(dc, stressLeft, (h * 0.785).toNumber(), STRESS_BARS * slotW, graphH, _stressBars, true);
 
-        drawBattery(dc, cx, h * 0.09);
+        drawDate(dc, cx, h * 0.09, accent);
     }
 
     // Solid ring around the edge in the clock gradient: pale at the top, accent at the bottom.
@@ -215,7 +215,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
     // ---------------------------------------------------------------- Time
 
-    // Large gradient time. To its right, a narrow column: month and date on top,
+    // Large gradient time. To its right, a narrow column: battery on top,
     // smaller gradient seconds at the bottom.
     private function drawTime(dc as Dc, cx as Number, cy as Number, timeStr as String, sec as Number, accent as Number) as Void {
         loadTimeFonts();
@@ -223,17 +223,11 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var secFont = _secondsFont as Graphics.FontType;
         var secStr = sec.format("%02d");
 
-        var info = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
-        var monthStr = (info.month as String).toUpper();
-        var dateStr = info.day.toString();
-
         var fh = dc.getFontHeight(font);
         var tw = dc.getTextWidthInPixels(timeStr, font);
         var sw = dc.getTextWidthInPixels(secStr, secFont);
-        var colW = sw;
-        var dateFont = textFont();
-        var monthW = dc.getTextWidthInPixels(monthStr, dateFont);
-        colW = monthW > colW ? monthW : colW;
+        var batteryW = BATTERY_W + 5;
+        var colW = sw > batteryW ? sw : batteryW;
         var secGap = 6;
         // The whole block (time plus column) is centered on the screen
         var left = cx - (tw + secGap + colW) / 2;
@@ -246,24 +240,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var baseline = cy - fh / 2 + Graphics.getFontAscent(font);
         var digitTop = baseline - TIME_FONT_SIZE * DIGIT_HEIGHT;
 
-        // Month top-aligned with the digits, date beneath it. Drawn from the top of
-        // the line box, so step back by the space above the capital letters.
-        var capH = TEXT_FONT_SIZE * CAP_HEIGHT;
-        var dateAscent = Graphics.getFontAscent(dateFont);
-        var monthY = digitTop - (dateAscent - capH);
-        var dateY = monthY + capH + 10;
-
-        // One gradient across both lines: pale at the top of the month, accent at the
-        // bottom of the date. Drawn once per thin band, clipped to that band.
-        var gradTop = digitTop;
-        var gradBottom = dateY + dateAscent;
-        for (var y = gradTop.toNumber(); y < gradBottom; y += 2) {
-            dc.setClip(colX, y, colW + 6, 2);
-            dc.setColor(blendColor(_pale, accent, ((y - gradTop) / (gradBottom - gradTop)).toFloat()), Graphics.COLOR_TRANSPARENT);
-            dc.drawText(colX + 2, monthY, dateFont, monthStr, Graphics.TEXT_JUSTIFY_LEFT);
-            dc.drawText(colX + 3, dateY, dateFont, dateStr, Graphics.TEXT_JUSTIFY_LEFT);
-        }
-        dc.clearClip();
+        // Battery top-aligned with the digits
+        drawBattery(dc, colX + 2 + BATTERY_W / 2, digitTop + BATTERY_H / 2 + 1);
 
         // Seconds sit on the same baseline as the big digits
         var sfh = dc.getFontHeight(secFont);
@@ -271,6 +249,26 @@ class Venu3FaceView extends WatchUi.WatchFace {
         // Small offsets correct for the space each font leaves before its first glyph
         // (it varies a pixel or two by digit, so seconds use the average)
         drawGradientText(dc, colX + 1, secY, secFont, secStr, sw, accent, 2);
+    }
+
+    // Month and date on one line, e.g. "NOV 22", in one gradient from pale at the
+    // top of the capitals to accent at their bottom. Drawn once per thin band.
+    private function drawDate(dc as Dc, cx as Number, y as Numeric, accent as Number) as Void {
+        var info = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
+        var dateStr = (info.month as String).toUpper() + " " + info.day;
+        var font = textFont();
+        var left = cx - dc.getTextWidthInPixels(dateStr, font) / 2;
+
+        // Drawn from the top of the line box, placed so the capitals are centered on y
+        var capH = TEXT_FONT_SIZE * CAP_HEIGHT;
+        var gradTop = y - capH / 2;
+        var textY = gradTop - (Graphics.getFontAscent(font) - capH);
+        for (var by = gradTop.toNumber(); by < gradTop + capH; by += 2) {
+            dc.setClip(left - 2, by, cx * 2, 2);
+            dc.setColor(blendColor(_pale, accent, ((by - gradTop) / capH).toFloat()), Graphics.COLOR_TRANSPARENT);
+            dc.drawText(left, textY, font, dateStr, Graphics.TEXT_JUSTIFY_LEFT);
+        }
+        dc.clearClip();
     }
 
     // Text with a drop shadow and a vertical gradient from a light tint of the accent color into the accent color.
