@@ -243,7 +243,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         drawGradientText(dc, colX, secY, secFont, secStr, sw, accent, 2);
     }
 
-    // Text with a drop shadow and a vertical gradient from white into the accent color.
+    // Text with a drop shadow and a vertical gradient from a light tint of the accent color into the accent color.
     // The gradient is made by drawing the text once per horizontal band, clipped to that band.
     private function drawGradientText(dc as Dc, left as Number, cy as Number, font as Graphics.FontType,
             text as String, tw as Number, accent as Number, shadow as Number) as Void {
@@ -257,11 +257,12 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var glyphTop = cy - fh * GLYPH_HALF;
         var glyphH = fh * 2 * GLYPH_HALF;
         var band = fh > 100 ? 4 : 2;
+        var topColor = blendColor(accent, 0xFFFFFF, 0.6);
         for (var y = cy - fh / 2; y < cy + fh / 2; y += band) {
             var t = (y - glyphTop) / glyphH;
             t = t < 0 ? 0.0 : (t > 1 ? 1.0 : t);
             dc.setClip(left - 2, y, tw + 4, band);
-            dc.setColor(blendColor(0xFFFFFF, accent, t.toFloat()), Graphics.COLOR_TRANSPARENT);
+            dc.setColor(blendColor(topColor, accent, t.toFloat()), Graphics.COLOR_TRANSPARENT);
             dc.drawText(left, cy, font, text, justify);
         }
         dc.clearClip();
