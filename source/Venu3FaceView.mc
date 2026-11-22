@@ -28,12 +28,12 @@ class Venu3FaceView extends WatchUi.WatchFace {
     // Fraction of the font's line height covered above (and below) the center by digit glyphs
     const GLYPH_HALF = 0.3;
 
-    const COLOR_HR = 0xFF2255;
     const COLOR_TRACK = 0x333333;
 
     // Pale tint of the accent: top of the clock gradient and the colour of all plain text
     const PALE_MIX = 0.8;
     private var _pale as Number = 0xCCEEFF;
+    private var _accent as Number = 0x00AAFF;
 
     // True while the watch is in always-on (low power) mode
     private var _isLowPower as Boolean = false;
@@ -75,6 +75,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         var activity = ActivityMonitor.getInfo();
         var accent = getAccentColor();
+        _accent = accent;
         _pale = blendColor(accent, 0xFFFFFF, PALE_MIX);
 
         drawBorder(dc, cx, cy, accent);
@@ -137,8 +138,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
     private function drawStats(dc as Dc, cx as Number, y as Numeric, activity as ActivityMonitor.Info) as Void {
         var vcenter = Graphics.TEXT_JUSTIFY_VCENTER;
 
-        dc.setColor(COLOR_HR, Graphics.COLOR_TRANSPARENT);
-        drawHeart(dc, cx - 140, y, 9);
+        drawGradientIcon(dc, :heart, cx - 140, y, 11);
         dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx - 125, y, textFont(), getHeartRateString(), Graphics.TEXT_JUSTIFY_LEFT | vcenter);
 
@@ -149,8 +149,27 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var calRight = cx + 145;
         dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
         dc.drawText(calRight, y, textFont(), calStr, Graphics.TEXT_JUSTIFY_RIGHT | vcenter);
-        dc.setColor(0xFFCC00, Graphics.COLOR_TRANSPARENT);
-        drawBolt(dc, calRight - dc.getTextWidthInPixels(calStr, textFont()) - 12, y);
+        drawGradientIcon(dc, :bolt, calRight - dc.getTextWidthInPixels(calStr, textFont()) - 12, y, 12);
+    }
+
+    // Draws an icon in the clock's pale-to-accent vertical gradient, by drawing it
+    // once per thin horizontal band, clipped to that band
+    private function drawGradientIcon(dc as Dc, kind as Symbol, x as Number, y as Numeric, half as Number) as Void {
+        var top = y - half;
+        for (var by = top; by < y + half; by += 2) {
+            dc.setClip(x - 40, by, 80, 2);
+            dc.setColor(blendColor(_pale, _accent, (by - top).toFloat() / (2 * half)), Graphics.COLOR_TRANSPARENT);
+            if (kind == :heart) {
+                drawHeart(dc, x, y, 9);
+            } else if (kind == :bolt) {
+                drawBolt(dc, x, y);
+            } else if (kind == :wind) {
+                drawWindIcon(dc, x, y);
+            } else if (kind == :battery) {
+                drawBatteryShape(dc, x, y);
+            }
+        }
+        dc.clearClip();
     }
 
     private function formatCalories(calories as Number?) as String {
@@ -167,25 +186,38 @@ class Venu3FaceView extends WatchUi.WatchFace {
         dc.fillPolygon([[x + 3, y - 11], [x - 6, y + 2], [x, y + 2], [x - 3, y + 11], [x + 6, y - 2], [x, y - 2]]);
     }
 
-    // Battery outline with a colored fill level
+    // Battery outline and fill level in the clock gradient; the fill turns red when low
+    const BATTERY_W = 30;
+    const BATTERY_H = 16;
+    const BATTERY_LOW = 20;
+    private var _batteryFillW as Number = 0;
+
     private function drawBattery(dc as Dc, cx as Number, y as Numeric) as Void {
         var pct = System.getSystemStats().battery;
-        var color = pct > 50 ? 0x00CC44 : (pct > 20 ? 0xFFCC00 : 0xFF2200);
-        var bw = 30;
-        var bh = 16;
-        var bx = cx - bw / 2;
-        var by = y - bh / 2;
+        var fillW = ((BATTERY_W - 6) * pct / 100).toNumber();
+        if (pct <= BATTERY_LOW) {
+            // Gradient outline only, then the fill in red
+            _batteryFillW = 0;
+            drawGradientIcon(dc, :battery, cx, y, BATTERY_H / 2 + 1);
+            if (fillW > 0) {
+                dc.setColor(0xFF2200, Graphics.COLOR_TRANSPARENT);
+                dc.fillRectangle(cx - BATTERY_W / 2 + 3, y - BATTERY_H / 2 + 3, fillW, BATTERY_H - 6);
+            }
+        } else {
+            _batteryFillW = fillW;
+            drawGradientIcon(dc, :battery, cx, y, BATTERY_H / 2 + 1);
+        }
+    }
 
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+    private function drawBatteryShape(dc as Dc, cx as Number, y as Numeric) as Void {
+        var bx = cx - BATTERY_W / 2;
+        var by = y - BATTERY_H / 2;
         dc.setPenWidth(2);
-        dc.drawRoundedRectangle(bx, by, bw, bh, 3);
+        dc.drawRoundedRectangle(bx, by, BATTERY_W, BATTERY_H, 3);
         dc.setPenWidth(1);
-        dc.fillRectangle(bx + bw, by + 4, 3, bh - 8);
-
-        var fillW = ((bw - 6) * pct / 100).toNumber();
-        if (fillW > 0) {
-            dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-            dc.fillRectangle(bx + 3, by + 3, fillW, bh - 6);
+        dc.fillRectangle(bx + BATTERY_W, by + 4, 3, BATTERY_H - 8);
+        if (_batteryFillW > 0) {
+            dc.fillRectangle(bx + 3, by + 3, _batteryFillW, BATTERY_H - 6);
         }
     }
 
@@ -225,7 +257,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         // Month and date line up with the top of the big digits
         var glyphTop = cy - fh * GLYPH_HALF;
         var justify = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
-        dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
         dc.drawText(colX + 2, glyphTop + 10, dateFont, monthStr, justify);
         dc.drawText(colX + 2, glyphTop + 38, dateFont, dateStr, justify);
 
@@ -358,7 +390,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
         dc.drawText(x + iconW, y, textFont(), tempStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
 
         var windX = x + iconW + tempW + gap;
-        drawWindIcon(dc, windX, y);
+        drawGradientIcon(dc, :wind, windX, y, 16);
+        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
         dc.drawText(windX + windIconW, y, textFont(), windStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
     }
 
@@ -408,19 +441,20 @@ class Venu3FaceView extends WatchUi.WatchFace {
     }
 
     private function drawWeatherIcon(dc as Dc, x as Number, y as Numeric, r as Number, kind as Symbol) as Void {
+        // Drawn in the clock gradient's two colours: pale for sun and precipitation, accent for cloud
         if (kind == :sun) {
             drawSun(dc, x, y, r);
         } else if (kind == :partly) {
             drawSun(dc, x + r / 3, y - r / 3, r * 3 / 4);
-            drawCloud(dc, x - r / 6, y + r / 4, r * 3 / 4, Graphics.COLOR_LT_GRAY);
+            drawCloud(dc, x - r / 6, y + r / 4, r * 3 / 4, _accent);
         } else if (kind == :cloud) {
-            drawCloud(dc, x, y, r, Graphics.COLOR_LT_GRAY);
+            drawCloud(dc, x, y, r, _accent);
         } else {
-            // Rain, snow and storms: a darker cloud with something falling from it
-            drawCloud(dc, x, y - r / 3, r, Graphics.COLOR_DK_GRAY);
+            // Rain, snow and storms: a cloud with something falling from it
+            drawCloud(dc, x, y - r / 3, r, _accent);
             var top = y + r / 3;
+            dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
             if (kind == :rain) {
-                dc.setColor(0x3399FF, Graphics.COLOR_TRANSPARENT);
                 dc.setPenWidth(3);
                 for (var i = -1; i <= 1; i++) {
                     var dx = x + i * r / 2;
@@ -428,12 +462,10 @@ class Venu3FaceView extends WatchUi.WatchFace {
                 }
                 dc.setPenWidth(1);
             } else if (kind == :snow) {
-                dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
                 for (var i = -1; i <= 1; i++) {
                     dc.fillCircle(x + i * r / 2, top + r / 4 + (i == 0 ? r / 4 : 0), 3);
                 }
             } else {
-                dc.setColor(Graphics.COLOR_YELLOW, Graphics.COLOR_TRANSPARENT);
                 dc.fillPolygon([[x + 2, top - 2], [x - 6, top + r / 3], [x, top + r / 3],
                                 [x - 4, top + r * 2 / 3], [x + 7, top + r / 4], [x + 1, top + r / 4]]);
             }
@@ -441,7 +473,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
     }
 
     private function drawSun(dc as Dc, x as Numeric, y as Numeric, r as Number) as Void {
-        dc.setColor(0xFFCC00, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
         dc.fillCircle(x, y, r / 2);
         dc.setPenWidth(2);
         for (var i = 0; i < 8; i++) {
