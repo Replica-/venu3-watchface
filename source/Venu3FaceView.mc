@@ -101,7 +101,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
         // Heart rate and stress graphs below the time
         var graphW = 230;
         var graphH = 44;
-        drawGraph(dc, cx - graphW / 2, (h * 0.67).toNumber(), graphW, graphH, _hrBars, false);
+        // Heart rate is higher up where the screen is wider, so it gets more width
+        var hrW = 330;
+        drawGraph(dc, cx - hrW / 2, (h * 0.67).toNumber(), hrW, graphH, _hrBars, false);
         drawGraph(dc, cx - graphW / 2, (h * 0.785).toNumber(), graphW, graphH, _stressBars, true);
 
         drawBattery(dc, cx, h * 0.09);
