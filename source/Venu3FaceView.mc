@@ -82,13 +82,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         drawDivider(dc, cx, h * 0.232, 120, accent);
 
-        // Date, e.g. "SAT 22 NOV"
-        var info = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
-        var dateStr = Lang.format("$1$ $2$ $3$", [info.day_of_week, info.day, info.month]).toUpper();
-        dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.278, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-
-        drawTime(dc, cx, (h * 0.455).toNumber(), timeStr, clock.sec, accent);
+        drawTime(dc, cx, (h * 0.435).toNumber(), timeStr, clock.sec, accent);
 
         drawStats(dc, cx, h * 0.625, activity);
 
@@ -189,25 +183,42 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
     // ---------------------------------------------------------------- Time
 
-    // Large gradient time with smaller gradient seconds to the right
+    // Large gradient time. To its right, a narrow column: day and date on top,
+    // smaller gradient seconds at the bottom.
     private function drawTime(dc as Dc, cx as Number, cy as Number, timeStr as String, sec as Number, accent as Number) as Void {
         loadTimeFonts();
         var font = _timeFont as Graphics.FontType;
         var secFont = _secondsFont as Graphics.FontType;
         var secStr = sec.format("%02d");
 
+        var info = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
+        var dayStr = (info.day_of_week as String).toUpper();
+        var dateStr = info.day.toString();
+
         var fh = dc.getFontHeight(font);
         var tw = dc.getTextWidthInPixels(timeStr, font);
         var sw = dc.getTextWidthInPixels(secStr, secFont);
+        var colW = sw;
+        var dayW = dc.getTextWidthInPixels(dayStr, Graphics.FONT_XTINY);
+        colW = dayW > colW ? dayW : colW;
         var secGap = 4;
-        var left = cx - (tw + secGap + sw) / 2;
+        var left = cx - (tw + secGap + colW) / 2;
+        var colX = left + tw + secGap;
 
         drawGradientText(dc, left, cy, font, timeStr, tw, accent, 4);
+
+        // Day and date line up with the top of the big digits
+        var glyphTop = cy - fh * GLYPH_HALF;
+        var justify = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
+        dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(colX + 2, glyphTop + 10, Graphics.FONT_XTINY, dayStr, justify);
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(colX + 2, glyphTop + 38, Graphics.FONT_XTINY, dateStr, justify);
 
         // Seconds share the baseline of the big digits, same style at a smaller scale
         var sfh = dc.getFontHeight(secFont);
         var secY = (cy + fh * GLYPH_HALF - sfh * GLYPH_HALF).toNumber();
-        drawGradientText(dc, left + tw + secGap, secY, secFont, secStr, sw, accent, 2);
+        drawGradientText(dc, colX, secY, secFont, secStr, sw, accent, 2);
     }
 
     // Text with a drop shadow and a vertical gradient from white into the accent color.
