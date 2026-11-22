@@ -258,8 +258,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var glyphTop = cy - fh * GLYPH_HALF;
         var justify = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
         dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(colX + 2, glyphTop + 10, dateFont, monthStr, justify);
-        dc.drawText(colX + 2, glyphTop + 38, dateFont, dateStr, justify);
+        dc.drawText(colX + 2, glyphTop + 15, dateFont, monthStr, justify);
+        dc.drawText(colX + 2, glyphTop + 43, dateFont, dateStr, justify);
 
         // Seconds share the baseline of the big digits, same style at a smaller scale
         var sfh = dc.getFontHeight(secFont);
