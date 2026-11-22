@@ -1,0 +1,3 @@
+# Demo build with sample data: monkeyc -f demo.jungle ...
+project.manifest = manifest.xml
+base.sourcePath = source;config/demo

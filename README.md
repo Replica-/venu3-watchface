@@ -27,6 +27,19 @@ Useful simulator menu items:
 - *Settings → Low Power Mode* – test the always-on display
 - *File → Edit Persistent Storage → Edit Application.Properties* – try accent colors
 
+## Demo build (sample data)
+
+The simulator has no stress, calorie or intensity-minute history, so those
+parts of the face show empty. `demo.jungle` builds a version that fills them
+with sample data from `source/Demo.mc`:
+
+```
+monkeyc -f demo.jungle -d venu3 -o bin/venu3face-demo.prg -y <developer_key>
+monkeydo bin/venu3face-demo.prg venu3
+```
+
+`monkey.jungle` (the normal build, used by VS Code) always shows real data.
+
 ## Install on your watch
 
 1. `Ctrl+Shift+P` → *Monkey C: Build for Device* → **venu3**. This produces a

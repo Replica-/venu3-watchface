@@ -13,9 +13,10 @@ import Toybox.WatchUi;
 
 class Venu3FaceView extends WatchUi.WatchFace {
 
-    // Graphs cover the last few hours, averaged into this many bars
-    const GRAPH_HOURS = 4;
-    const GRAPH_BARS = 40;
+    // Graphs cover the last hour, averaged into 3-minute bars
+    // (stress is only sampled about every 3 minutes)
+    const GRAPH_MINUTES = 60;
+    const GRAPH_BARS = 20;
 
     // Pixel sizes of the scalable time fonts
     const TIME_FONT_SIZE = 195;
@@ -123,14 +124,14 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var vcenter = Graphics.TEXT_JUSTIFY_VCENTER;
 
         dc.setColor(COLOR_HR, Graphics.COLOR_TRANSPARENT);
-        drawHeart(dc, cx - 150, y, 9);
+        drawHeart(dc, cx - 172, y, 9);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx - 134, y, Graphics.FONT_TINY, getHeartRateString(), Graphics.TEXT_JUSTIFY_LEFT | vcenter);
+        dc.drawText(cx - 156, y, Graphics.FONT_TINY, getHeartRateString(), Graphics.TEXT_JUSTIFY_LEFT | vcenter);
 
         drawBattery(dc, cx, y);
 
-        var calories = activity.calories;
-        var kcalRight = cx + 160;
+        var calories = Config.DEMO ? Demo.CALORIES : activity.calories;
+        var kcalRight = cx + 182;
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
         dc.drawText(kcalRight, y + 3, Graphics.FONT_XTINY, "kcal", Graphics.TEXT_JUSTIFY_RIGHT | vcenter);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
@@ -144,7 +145,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var color = pct > 50 ? 0x00CC44 : (pct > 20 ? 0xFFCC00 : 0xFF2200);
         var bw = 30;
         var bh = 16;
-        var bx = cx - 38;
+        var bx = cx - 66;
         var by = y - bh / 2;
 
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
@@ -399,12 +400,17 @@ class Venu3FaceView extends WatchUi.WatchFace {
     // ---------------------------------------------------------------- Graphs
 
     private function refreshGraphs() as Void {
+        if (Config.DEMO) {
+            _hrBars = Demo.heartRateBars();
+            _stressBars = Demo.stressBars();
+            return;
+        }
         _hrBars = [] as Array<Number?>;
         _stressBars = [] as Array<Number?>;
         if (!(Toybox has :SensorHistory)) {
             return;
         }
-        var options = {:period => new Time.Duration(GRAPH_HOURS * 3600)};
+        var options = {:period => new Time.Duration(GRAPH_MINUTES * 60)};
         if (SensorHistory has :getHeartRateHistory) {
             _hrBars = bucketHistory(SensorHistory.getHeartRateHistory(options));
         }
@@ -415,7 +421,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
     // Averages samples into GRAPH_BARS time slots, oldest first. Empty slots are null.
     private function bucketHistory(iter as SensorHistory.SensorHistoryIterator) as Array<Number?> {
-        var span = GRAPH_HOURS * 3600;
+        var span = GRAPH_MINUTES * 60;
         var start = Time.now().value() - span;
         var sums = new Array<Number>[GRAPH_BARS];
         var counts = new Array<Number>[GRAPH_BARS];
@@ -553,10 +559,12 @@ class Venu3FaceView extends WatchUi.WatchFace {
             dc.fillRoundedRectangle(bx, y, blockW, blockH, 3);
 
             if (am != null) {
-                var modW = am.moderate * blockW / dailyTarget;
-                modW = modW > blockW ? blockW : modW;
-                var vigW = 2 * am.vigorous * blockW / dailyTarget;
-                vigW = modW + vigW > blockW ? blockW - modW : vigW;
+                // Past the daily target the block is full, split in proportion
+                var moderate = am[0];
+                var vigorous = 2 * am[1];
+                var scale = moderate + vigorous > dailyTarget ? moderate + vigorous : dailyTarget;
+                var modW = moderate * blockW / scale;
+                var vigW = vigorous * blockW / scale;
                 if (modW > 0) {
                     dc.setColor(COLOR_MODERATE, Graphics.COLOR_TRANSPARENT);
                     dc.fillRoundedRectangle(bx, y, modW, blockH, 3);
@@ -573,18 +581,25 @@ class Venu3FaceView extends WatchUi.WatchFace {
         dc.drawRoundedRectangle(x + 6 * (blockW + gap) - 2, y - 2, blockW + 4, blockH + 4, 4);
     }
 
-    // Active minutes for the last 7 days, oldest first, today last. Missing days are null.
-    private function getLast7Days(info as ActivityMonitor.Info) as Array<ActivityMonitor.ActiveMinutes?> {
-        var days = new Array<ActivityMonitor.ActiveMinutes?>[7];
+    // [moderate, vigorous] minutes for the last 7 days, oldest first, today last. Missing days are null.
+    private function getLast7Days(info as ActivityMonitor.Info) as Array<Array<Number>?> {
+        if (Config.DEMO) {
+            return Demo.last7Days();
+        }
+        var days = new Array<Array<Number>?>[7];
         var history = ActivityMonitor.getHistory();
         if (history != null) {
             // history[0] is yesterday
             for (var i = 0; i < 6 && i < history.size(); i++) {
-                days[5 - i] = history[i].activeMinutes;
+                days[5 - i] = toPair(history[i].activeMinutes);
             }
         }
-        days[6] = info.activeMinutesDay;
+        days[6] = toPair(info.activeMinutesDay);
         return days;
+    }
+
+    private function toPair(am as ActivityMonitor.ActiveMinutes?) as Array<Number>? {
+        return am != null ? [am.moderate, am.vigorous] as Array<Number> : null;
     }
 
     // ---------------------------------------------------------------- Helpers
