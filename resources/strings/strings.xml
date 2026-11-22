@@ -1,9 +1,23 @@
 <strings>
     <string id="AppName">Venu 3 Face</string>
 
-    <string id="AccentColorTitle">Accent color</string>
-    <string id="ColorBlue">Blue</string>
-    <string id="ColorOrange">Orange</string>
-    <string id="ColorGreen">Green</string>
+    <string id="StartColorTitle">Gradient start colour</string>
+    <string id="EndColorTitle">Gradient end colour</string>
+
+    <string id="ColorPaleBlue">Pale blue</string>
     <string id="ColorWhite">White</string>
+    <string id="ColorPalePink">Pale pink</string>
+    <string id="ColorPaleGreen">Pale green</string>
+    <string id="ColorPaleYellow">Pale yellow</string>
+    <string id="ColorLavender">Lavender</string>
+    <string id="ColorPeach">Peach</string>
+
+    <string id="ColorSkyBlue">Sky blue</string>
+    <string id="ColorDeepBlue">Deep blue</string>
+    <string id="ColorTeal">Teal</string>
+    <string id="ColorGreen">Green</string>
+    <string id="ColorOrange">Orange</string>
+    <string id="ColorRed">Red</string>
+    <string id="ColorPink">Pink</string>
+    <string id="ColorPurple">Purple</string>
 </strings>

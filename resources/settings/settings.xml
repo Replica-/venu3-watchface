@@ -1,10 +1,25 @@
 <settings>
-    <setting propertyKey="@Properties.AccentColor" title="@Strings.AccentColorTitle">
+    <setting propertyKey="@Properties.StartColor" title="@Strings.StartColorTitle">
         <settingConfig type="list">
-            <listEntry value="43775">@Strings.ColorBlue</listEntry>      <!-- 0x00AAFF -->
-            <listEntry value="16733440">@Strings.ColorOrange</listEntry>  <!-- 0xFF5500 -->
-            <listEntry value="65280">@Strings.ColorGreen</listEntry>      <!-- 0x00FF00 -->
-            <listEntry value="16777215">@Strings.ColorWhite</listEntry>   <!-- 0xFFFFFF -->
+            <listEntry value="13430527">@Strings.ColorPaleBlue</listEntry>    <!-- 0xCCEEFF -->
+            <listEntry value="16777215">@Strings.ColorWhite</listEntry>       <!-- 0xFFFFFF -->
+            <listEntry value="16766696">@Strings.ColorPalePink</listEntry>    <!-- 0xFFD6E8 -->
+            <listEntry value="14090208">@Strings.ColorPaleGreen</listEntry>   <!-- 0xD6FFE0 -->
+            <listEntry value="16774338">@Strings.ColorPaleYellow</listEntry>  <!-- 0xFFF4C2 -->
+            <listEntry value="15129087">@Strings.ColorLavender</listEntry>    <!-- 0xE6D9FF -->
+            <listEntry value="16769228">@Strings.ColorPeach</listEntry>       <!-- 0xFFE0CC -->
+        </settingConfig>
+    </setting>
+    <setting propertyKey="@Properties.EndColor" title="@Strings.EndColorTitle">
+        <settingConfig type="list">
+            <listEntry value="43775">@Strings.ColorSkyBlue</listEntry>        <!-- 0x00AAFF -->
+            <listEntry value="22015">@Strings.ColorDeepBlue</listEntry>       <!-- 0x0055FF -->
+            <listEntry value="52403">@Strings.ColorTeal</listEntry>           <!-- 0x00CCB3 -->
+            <listEntry value="52292">@Strings.ColorGreen</listEntry>          <!-- 0x00CC44 -->
+            <listEntry value="16742144">@Strings.ColorOrange</listEntry>      <!-- 0xFF7700 -->
+            <listEntry value="16720452">@Strings.ColorRed</listEntry>         <!-- 0xFF2244 -->
+            <listEntry value="16724889">@Strings.ColorPink</listEntry>        <!-- 0xFF3399 -->
+            <listEntry value="10044671">@Strings.ColorPurple</listEntry>      <!-- 0x9944FF -->
         </settingConfig>
     </setting>
 </settings>

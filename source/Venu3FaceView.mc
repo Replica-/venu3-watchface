@@ -28,9 +28,10 @@ class Venu3FaceView extends WatchUi.WatchFace {
     const TEXT_FONT_SIZE = 30;
 
     // Pixel sizes of the scalable time fonts
-    const TIME_FONT_SIZE = 205;
+    const TIME_FONT_SIZE = 180;
+    // AM/PM and seconds share the height of the big digits, with a small gap between
     const SECONDS_FONT_SIZE = 74;
-    const AMPM_FONT_SIZE = 40;
+    const AMPM_FONT_SIZE = 74;
 
     // Fraction of the font's line height covered above (and below) the center by digit glyphs
     const GLYPH_HALF = 0.3;
@@ -41,8 +42,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
     const COLOR_TRACK = 0x333333;
 
-    // Pale tint of the accent: top of the clock gradient and the colour of all plain text
-    const PALE_MIX = 0.8;
+    // Gradient colours, chosen in the watch face settings: _pale is the top of every
+    // gradient and the colour of plain text, _accent the bottom of every gradient
     private var _pale as Number = 0xCCEEFF;
     private var _accent as Number = 0x00AAFF;
 
@@ -85,30 +86,30 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
 
         var activity = ActivityMonitor.getInfo();
-        var accent = getAccentColor();
-        _accent = accent;
-        _pale = blendColor(accent, 0xFFFFFF, PALE_MIX);
+        _pale = getColorSetting("StartColor", 0xCCEEFF);
+        _accent = getColorSetting("EndColor", 0x00AAFF);
+        var accent = _accent;
 
         drawBorder(dc, cx, cy, accent);
 
-        drawIntensity(dc, cx, (h * 0.161).toNumber(), activity, accent);
+        drawIntensity(dc, cx, (h * 0.153).toNumber(), activity, accent);
 
-        drawTopRow(dc, cx, h * 0.264, activity);
+        drawTopRow(dc, cx, h * 0.253, activity);
 
-        drawDivider(dc, cx, h * 0.35, 120, accent);
+        drawDivider(dc, cx, h * 0.335, 120, accent);
 
         // Time sits in the exact center of the screen
         drawTime(dc, cx, cy, timeStr, clock.sec, clock.hour, accent);
 
-        drawDivider(dc, cx, h * 0.645, 140, accent);
+        drawDivider(dc, cx, h * 0.665, 140, accent);
 
         // Heart rate and stress graphs below the time
         var graphH = 44;
         // Stress is centered on the heart rate bar slots so the bars line up column for column
         var hrLeft = cx - HR_BARS * BAR_PX / 2;
-        drawGraph(dc, hrLeft, (h * 0.67).toNumber(), HR_BARS * BAR_PX, graphH, _hrBars, false);
+        drawGraph(dc, hrLeft, (h * 0.69).toNumber(), HR_BARS * BAR_PX, graphH, _hrBars, false);
         var stressLeft = hrLeft + (HR_BARS - STRESS_BARS) / 2 * BAR_PX;
-        drawGraph(dc, stressLeft, (h * 0.785).toNumber(), STRESS_BARS * BAR_PX, graphH, _stressBars, true);
+        drawGraph(dc, stressLeft, (h * 0.8).toNumber(), STRESS_BARS * BAR_PX, graphH, _stressBars, true);
 
         drawDate(dc, cx, h * 0.09, accent);
     }
@@ -790,9 +791,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
         return "--";
     }
 
-    private function getAccentColor() as Number {
-        var color = Application.Properties.getValue("AccentColor");
-        return color instanceof Number ? color : Graphics.COLOR_BLUE;
+    private function getColorSetting(key as String, fallback as Number) as Number {
+        var color = Application.Properties.getValue(key);
+        return color instanceof Number ? color : fallback;
     }
 
     function onExitSleep() as Void {

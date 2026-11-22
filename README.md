@@ -25,7 +25,7 @@ position every minute to protect the AMOLED screen from burn-in.
 
 Useful simulator menu items:
 - *Settings → Low Power Mode* – test the always-on display
-- *File → Edit Persistent Storage → Edit Application.Properties* – try accent colors
+- *File → Edit Persistent Storage → Edit Application.Properties* – try the gradient start/end colours (StartColor, EndColor)
 
 ## Demo build (sample data)
 
@@ -59,5 +59,5 @@ source/
 resources/
   drawables/              Launcher icon
   strings/                Text shown to the user
-  settings/               User-configurable settings (accent color)
+  settings/               User-configurable settings (gradient start and end colours)
 ```

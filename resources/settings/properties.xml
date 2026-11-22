@@ -1,4 +1,6 @@
 <properties>
-    <!-- 0x00AAFF -->
-    <property id="AccentColor" type="number">43775</property>
+    <!-- Top of every gradient, and the colour of plain text. 0xCCEEFF pale blue -->
+    <property id="StartColor" type="number">13430527</property>
+    <!-- Bottom of every gradient. 0x00AAFF sky blue -->
+    <property id="EndColor" type="number">43775</property>
 </properties>
