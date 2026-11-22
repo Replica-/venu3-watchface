@@ -7,14 +7,14 @@ module Demo {
 
     // An hour of heart rate: resting, a hard effort peaking above 120, then a cool-down
     function heartRateBars() as Array<Number?> {
-        return [58, 59, 62, 66, 75, 90, 105, 118, 131, 142,
-                136, 121, 106, 91, 82, 76, 72, 70, 67, 65] as Array<Number?>;
+        return [58, 57, 59, 61, 62, 64, 66, 70, 75, 82, 90, 98, 105, 112, 118, 124, 131, 138, 142, 141,
+                136, 129, 121, 114, 106, 98, 91, 86, 82, 79, 76, 74, 72, 71, 70, 68, 67, 66, 65, 64] as Array<Number?>;
     }
 
-    // An hour of stress: calm, rising, a gap while active (no reading), then recovery
+    // 42 minutes of stress: calm, rising, a gap while active (no reading), then recovery
     function stressBars() as Array<Number?> {
-        return [18, 25, 34, 48, 62, 78, 82, 68, null, null,
-                null, null, 45, 36, 27, 20, 22, 29, 27, 21] as Array<Number?>;
+        return [18, 22, 25, 30, 34, 41, 48, 55, 62, 70, 78, 82, 76, 68,
+                null, null, null, null, 45, 40, 36, 31, 27, 24, 20, 22, 26, 21] as Array<Number?>;
     }
 
     // Last 7 days of [moderate, vigorous] minutes, oldest first, today last

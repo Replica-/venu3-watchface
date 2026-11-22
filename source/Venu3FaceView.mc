@@ -13,10 +13,11 @@ import Toybox.WatchUi;
 
 class Venu3FaceView extends WatchUi.WatchFace {
 
-    // Graphs cover the last hour, averaged into 3-minute bars
-    // (stress is only sampled about every 3 minutes)
-    const GRAPH_MINUTES = 60;
-    const GRAPH_BARS = 20;
+    // Both graphs use 1.5-minute bars on one shared grid so their bars line up.
+    // Heart rate covers the last hour; the narrower stress graph covers fewer bars.
+    const BAR_SECONDS = 90;
+    const HR_BARS = 40;
+    const STRESS_BARS = 28;
 
     // Height in pixels of every icon in the top row
     const ICON_H = 24;
@@ -87,9 +88,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         drawBorder(dc, cx, cy, accent);
 
-        drawIntensity(dc, cx, (h * 0.14).toNumber(), activity, accent);
+        drawIntensity(dc, cx, (h * 0.161).toNumber(), activity, accent);
 
-        drawTopRow(dc, cx, h * 0.255, activity);
+        drawTopRow(dc, cx, h * 0.264, activity);
 
         drawDivider(dc, cx, h * 0.35, 120, accent);
 
@@ -99,12 +100,15 @@ class Venu3FaceView extends WatchUi.WatchFace {
         drawDivider(dc, cx, h * 0.645, 140, accent);
 
         // Heart rate and stress graphs below the time
-        var graphW = 230;
         var graphH = 44;
-        // Heart rate is higher up where the screen is wider, so it gets more width
+        // Heart rate is higher up where the screen is wider, so it spans more bar slots.
+        // Stress is centered on the same slots so the bars line up column for column.
         var hrW = 330;
-        drawGraph(dc, cx - hrW / 2, (h * 0.67).toNumber(), hrW, graphH, _hrBars, false);
-        drawGraph(dc, cx - graphW / 2, (h * 0.785).toNumber(), graphW, graphH, _stressBars, true);
+        var slotW = hrW.toFloat() / HR_BARS;
+        var hrLeft = cx - hrW / 2;
+        drawGraph(dc, hrLeft, (h * 0.67).toNumber(), hrW, graphH, _hrBars, false);
+        var stressLeft = hrLeft + (HR_BARS - STRESS_BARS) / 2 * slotW;
+        drawGraph(dc, stressLeft, (h * 0.785).toNumber(), STRESS_BARS * slotW, graphH, _stressBars, true);
 
         drawBattery(dc, cx, h * 0.09);
     }
@@ -244,15 +248,28 @@ class Venu3FaceView extends WatchUi.WatchFace {
         // Month top-aligned with the digits, date beneath it. Drawn from the top of
         // the line box, so step back by the space above the capital letters.
         var capH = TEXT_FONT_SIZE * CAP_HEIGHT;
-        var monthY = digitTop - (Graphics.getFontAscent(dateFont) - capH);
-        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(colX + 2, monthY, dateFont, monthStr, Graphics.TEXT_JUSTIFY_LEFT);
-        dc.drawText(colX + 2, monthY + capH + 10, dateFont, dateStr, Graphics.TEXT_JUSTIFY_LEFT);
+        var dateAscent = Graphics.getFontAscent(dateFont);
+        var monthY = digitTop - (dateAscent - capH);
+        var dateY = monthY + capH + 10;
+
+        // One gradient across both lines: pale at the top of the month, accent at the
+        // bottom of the date. Drawn once per thin band, clipped to that band.
+        var gradTop = digitTop;
+        var gradBottom = dateY + dateAscent;
+        for (var y = gradTop.toNumber(); y < gradBottom; y += 2) {
+            dc.setClip(colX, y, colW + 6, 2);
+            dc.setColor(blendColor(_pale, accent, ((y - gradTop) / (gradBottom - gradTop)).toFloat()), Graphics.COLOR_TRANSPARENT);
+            dc.drawText(colX + 2, monthY, dateFont, monthStr, Graphics.TEXT_JUSTIFY_LEFT);
+            dc.drawText(colX + 3, dateY, dateFont, dateStr, Graphics.TEXT_JUSTIFY_LEFT);
+        }
+        dc.clearClip();
 
         // Seconds sit on the same baseline as the big digits
         var sfh = dc.getFontHeight(secFont);
         var secY = (baseline - Graphics.getFontAscent(secFont) + sfh / 2).toNumber();
-        drawGradientText(dc, colX, secY, secFont, secStr, sw, accent, 2);
+        // Small offsets correct for the space each font leaves before its first glyph
+        // (it varies a pixel or two by digit, so seconds use the average)
+        drawGradientText(dc, colX + 1, secY, secFont, secStr, sw, accent, 2);
     }
 
     // Text with a drop shadow and a vertical gradient from a light tint of the accent color into the accent color.
@@ -502,22 +519,23 @@ class Venu3FaceView extends WatchUi.WatchFace {
         if (!(Toybox has :SensorHistory)) {
             return;
         }
-        var options = {:period => new Time.Duration(GRAPH_MINUTES * 60)};
+        var options = {:period => new Time.Duration(HR_BARS * BAR_SECONDS)};
         if (SensorHistory has :getHeartRateHistory) {
-            _hrBars = bucketHistory(SensorHistory.getHeartRateHistory(options));
+            _hrBars = fillSingleGaps(bucketHistory(SensorHistory.getHeartRateHistory(options), HR_BARS));
         }
         if (SensorHistory has :getStressHistory) {
-            _stressBars = bucketHistory(SensorHistory.getStressHistory(options));
+            // Stress is sampled about every 3 minutes, so every other bar is filled in
+            _stressBars = fillSingleGaps(bucketHistory(SensorHistory.getStressHistory(options), STRESS_BARS));
         }
     }
 
-    // Averages samples into GRAPH_BARS time slots, oldest first. Empty slots are null.
-    private function bucketHistory(iter as SensorHistory.SensorHistoryIterator) as Array<Number?> {
-        var span = GRAPH_MINUTES * 60;
+    // Averages samples into `count` bar slots ending now, oldest first. Empty slots are null.
+    private function bucketHistory(iter as SensorHistory.SensorHistoryIterator, count as Number) as Array<Number?> {
+        var span = count * BAR_SECONDS;
         var start = Time.now().value() - span;
-        var sums = new Array<Number>[GRAPH_BARS];
-        var counts = new Array<Number>[GRAPH_BARS];
-        for (var i = 0; i < GRAPH_BARS; i++) {
+        var sums = new Array<Number>[count];
+        var counts = new Array<Number>[count];
+        for (var i = 0; i < count; i++) {
             sums[i] = 0;
             counts[i] = 0;
         }
@@ -527,8 +545,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
             var value = sample.data;
             var when = sample.when;
             if (value != null && when != null) {
-                var slot = (when.value() - start) * GRAPH_BARS / span;
-                if (slot >= 0 && slot < GRAPH_BARS) {
+                var slot = (when.value() - start) * count / span;
+                if (slot >= 0 && slot < count) {
                     sums[slot] += value.toNumber();
                     counts[slot] += 1;
                 }
@@ -536,14 +554,25 @@ class Venu3FaceView extends WatchUi.WatchFace {
             sample = iter.next();
         }
 
-        var bars = new Array<Number?>[GRAPH_BARS];
-        for (var j = 0; j < GRAPH_BARS; j++) {
+        var bars = new Array<Number?>[count];
+        for (var j = 0; j < count; j++) {
             bars[j] = counts[j] > 0 ? sums[j] / counts[j] : null;
         }
         return bars;
     }
 
-    private function drawGraph(dc as Dc, x as Number, y as Number, gw as Number, gh as Number,
+    // Fills a single missing slot with the slot before it, so occasional missed
+    // samples don't leave holes. Longer gaps (watch off the wrist) stay visible.
+    private function fillSingleGaps(bars as Array<Number?>) as Array<Number?> {
+        for (var i = 1; i < bars.size() - 1; i++) {
+            if (bars[i] == null && bars[i - 1] != null && bars[i + 1] != null) {
+                bars[i] = bars[i - 1];
+            }
+        }
+        return bars;
+    }
+
+    private function drawGraph(dc as Dc, x as Numeric, y as Number, gw as Numeric, gh as Number,
             bars as Array<Number?>, isStress as Boolean) as Void {
         // HR is auto-scaled to its own range; stress is always 0-100
         var lo = 0;
@@ -575,7 +604,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
             return;
         }
 
-        var barW = gw.toFloat() / GRAPH_BARS;
+        var barW = gw.toFloat() / bars.size();
         for (var i = 0; i < bars.size(); i++) {
             var v = bars[i];
             if (v == null) {
