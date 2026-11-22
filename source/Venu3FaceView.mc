@@ -80,9 +80,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         drawBorder(dc, cx, cy, accent);
 
-        drawTopRow(dc, cx, h * 0.225, activity);
+        drawIntensity(dc, cx, (h * 0.15).toNumber(), activity, accent);
 
-        drawIntensity(dc, cx, (h * 0.285).toNumber(), activity, accent);
+        drawTopRow(dc, cx, h * 0.235, activity);
 
         drawDivider(dc, cx, h * 0.35, 120, accent);
 
