@@ -19,7 +19,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
     const GRAPH_BARS = 20;
 
     // Pixel sizes of the scalable time fonts
-    const TIME_FONT_SIZE = 195;
+    const TIME_FONT_SIZE = 188;
     const SECONDS_FONT_SIZE = 72;
 
     // Fraction of the font's line height covered above (and below) the center by digit glyphs
@@ -183,7 +183,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
     // ---------------------------------------------------------------- Time
 
-    // Large gradient time. To its right, a narrow column: day and date on top,
+    // Large gradient time. To its right, a narrow column: month and date on top,
     // smaller gradient seconds at the bottom.
     private function drawTime(dc as Dc, cx as Number, cy as Number, timeStr as String, sec as Number, accent as Number) as Void {
         loadTimeFonts();
@@ -192,27 +192,31 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var secStr = sec.format("%02d");
 
         var info = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
-        var dayStr = (info.day_of_week as String).toUpper();
+        var monthStr = (info.month as String).toUpper();
         var dateStr = info.day.toString();
 
         var fh = dc.getFontHeight(font);
         var tw = dc.getTextWidthInPixels(timeStr, font);
         var sw = dc.getTextWidthInPixels(secStr, secFont);
         var colW = sw;
-        var dayW = dc.getTextWidthInPixels(dayStr, Graphics.FONT_XTINY);
-        colW = dayW > colW ? dayW : colW;
+        var monthW = dc.getTextWidthInPixels(monthStr, Graphics.FONT_XTINY);
+        colW = monthW > colW ? monthW : colW;
         var secGap = 4;
         var left = cx - (tw + secGap + colW) / 2;
+        // Keep the month clear of the border ring on wide times like "08:08"
+        var maxRight = cx + 188;
+        if (left + tw + secGap + colW > maxRight) {
+            left = maxRight - (tw + secGap + colW);
+        }
         var colX = left + tw + secGap;
 
         drawGradientText(dc, left, cy, font, timeStr, tw, accent, 4);
 
-        // Day and date line up with the top of the big digits
+        // Month and date line up with the top of the big digits
         var glyphTop = cy - fh * GLYPH_HALF;
         var justify = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
         dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(colX + 2, glyphTop + 10, Graphics.FONT_XTINY, dayStr, justify);
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(colX + 2, glyphTop + 10, Graphics.FONT_XTINY, monthStr, justify);
         dc.drawText(colX + 2, glyphTop + 38, Graphics.FONT_XTINY, dateStr, justify);
 
         // Seconds share the baseline of the big digits, same style at a smaller scale
@@ -327,7 +331,6 @@ class Venu3FaceView extends WatchUi.WatchFace {
         dc.drawText(x + iconW, y, Graphics.FONT_TINY, tempStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
 
         var windX = x + iconW + tempW + gap;
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
         drawWindIcon(dc, windX, y);
         dc.drawText(windX + windIconW, y, Graphics.FONT_TINY, windStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
     }
