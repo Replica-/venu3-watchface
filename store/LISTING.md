@@ -34,7 +34,9 @@ Replica puts everything you check most on one clean, glanceable screen, wrapped 
 
 Note: the graphs build up over time, so they may look empty when you first install the face.
 
-Change the settings in the Garmin Connect app: Device → Watch Faces → Replica Watch Face → Settings.
+To change the settings, open the Garmin Connect app and go to Device, Watch Faces, Replica Watch Face, Settings.
+
+(The store rejects the characters < and >, so avoid them in the listing text.)
 
 ## What's new (1.0.0)
 
@@ -51,6 +53,7 @@ Free
 ## Images
 
 - `icon-512.png` – store icon
+- `hero-1440x720.png` – hero banner
 - `screenshot-0.png` – default colours (pale blue to sky blue)
 - `screenshot-1.png` – a green pair from the random colour mode
 - `screenshot-2.png` – autumn colours from the time, season and weather mode
