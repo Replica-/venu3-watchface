@@ -25,11 +25,15 @@ class Venu3FaceView extends WatchUi.WatchFace {
     const TEXT_FONT_SIZE = 30;
 
     // Pixel sizes of the scalable time fonts
-    const TIME_FONT_SIZE = 175;
-    const SECONDS_FONT_SIZE = 64;
+    const TIME_FONT_SIZE = 205;
+    const SECONDS_FONT_SIZE = 74;
 
     // Fraction of the font's line height covered above (and below) the center by digit glyphs
     const GLYPH_HALF = 0.3;
+
+    // Digit height and capital-letter height as fractions of the scalable font size
+    const DIGIT_HEIGHT = 0.51;
+    const CAP_HEIGHT = 0.71;
 
     const COLOR_TRACK = 0x333333;
 
@@ -104,7 +108,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
     }
 
     // Solid ring around the edge in the clock gradient: pale at the top, accent at the bottom.
-    // Drawn as short arcs, each coloured by its height. Diamonds at 12, 3, 6 and 9.
+    // Drawn as short arcs, each coloured by its height.
     private function drawBorder(dc as Dc, cx as Number, cy as Number, accent as Number) as Void {
         var r = cx - 5;
         var step = 5;
@@ -116,17 +120,6 @@ class Venu3FaceView extends WatchUi.WatchFace {
             dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, a, a + step + 1);
         }
         dc.setPenWidth(1);
-
-        var d = r - 9;
-        var s = 6;
-        var points = [[cx, cy - d], [cx + d, cy], [cx, cy + d], [cx - d, cy]];
-        var shades = [0.0, 0.5, 1.0, 0.5];
-        for (var i = 0; i < points.size(); i++) {
-            var px = points[i][0];
-            var py = points[i][1];
-            dc.setColor(blendColor(_pale, accent, shades[i]), Graphics.COLOR_TRANSPARENT);
-            dc.fillPolygon([[px, py - s], [px + s, py], [px, py + s], [px - s, py]]);
-        }
     }
 
     // Gradient bar: pale in the middle, accent further out, fading to black at both ends
@@ -234,28 +227,29 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var dateFont = textFont();
         var monthW = dc.getTextWidthInPixels(monthStr, dateFont);
         colW = monthW > colW ? monthW : colW;
-        var secGap = 4;
-        // The big digits are centered; the column hangs off to the right.
-        // If a wide time would push the column into the border ring, shift left just enough.
-        var left = cx - tw / 2;
-        var maxRight = cx + 200;
-        if (left + tw + secGap + colW > maxRight) {
-            left = maxRight - (tw + secGap + colW);
-        }
+        var secGap = 6;
+        // The whole block (time plus column) is centered on the screen
+        var left = cx - (tw + secGap + colW) / 2;
         var colX = left + tw + secGap;
 
         drawGradientText(dc, left, cy, font, timeStr, tw, accent, 4);
 
-        // Month and date line up with the top of the big digits
-        var glyphTop = cy - fh * GLYPH_HALF;
-        var justify = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
-        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(colX + 2, glyphTop + 15, dateFont, monthStr, justify);
-        dc.drawText(colX + 2, glyphTop + 43, dateFont, dateStr, justify);
+        // Drawn vertically centered, the line box is centered on cy, so the baseline
+        // (bottom of the digits) is the top of that box plus the font's ascent
+        var baseline = cy - fh / 2 + Graphics.getFontAscent(font);
+        var digitTop = baseline - TIME_FONT_SIZE * DIGIT_HEIGHT;
 
-        // Seconds share the baseline of the big digits, same style at a smaller scale
+        // Month top-aligned with the digits, date beneath it. Drawn from the top of
+        // the line box, so step back by the space above the capital letters.
+        var capH = TEXT_FONT_SIZE * CAP_HEIGHT;
+        var monthY = digitTop - (Graphics.getFontAscent(dateFont) - capH);
+        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(colX + 2, monthY, dateFont, monthStr, Graphics.TEXT_JUSTIFY_LEFT);
+        dc.drawText(colX + 2, monthY + capH + 10, dateFont, dateStr, Graphics.TEXT_JUSTIFY_LEFT);
+
+        // Seconds sit on the same baseline as the big digits
         var sfh = dc.getFontHeight(secFont);
-        var secY = (cy + fh * GLYPH_HALF - sfh * GLYPH_HALF).toNumber();
+        var secY = (baseline - Graphics.getFontAscent(secFont) + sfh / 2).toNumber();
         drawGradientText(dc, colX, secY, secFont, secStr, sw, accent, 2);
     }
 
