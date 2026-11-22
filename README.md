@@ -1,10 +1,14 @@
-# Venu 3 Watch Face
+# Replica Watch Face
 
-A custom Garmin Connect IQ watch face for the **Venu 3** (454×454 AMOLED).
+A Garmin Connect IQ watch face for the **Venu 3** (454×454 AMOLED).
 
-Shows the time, date, steps, heart rate, and a battery ring around the edge.
-In always-on mode it switches to a dim, minimal time display that shifts
-position every minute to protect the AMOLED screen from burn-in.
+A large gradient clock with date, battery, weather, wind, heart rate,
+calories, rolling 7-day intensity minutes, and heart rate and stress graphs.
+Colours are customisable in the watch face settings. In always-on mode it
+switches to a dim, minimal time display that shifts position every minute to
+protect the AMOLED screen from burn-in.
+
+The Connect IQ Store listing text and images are in [store/](store/).
 
 ## One-time setup
 
