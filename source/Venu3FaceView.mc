@@ -80,13 +80,11 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         drawBorder(dc, cx, cy, accent);
 
-        drawWeather(dc, cx, h * 0.12);
+        drawTopRow(dc, cx, h * 0.225, activity);
 
-        drawStats(dc, cx, h * 0.215, activity);
+        drawIntensity(dc, cx, (h * 0.285).toNumber(), activity, accent);
 
-        drawIntensity(dc, cx, (h * 0.275).toNumber(), activity, accent);
-
-        drawDivider(dc, cx, h * 0.345, 120, accent);
+        drawDivider(dc, cx, h * 0.35, 120, accent);
 
         // Time sits in the exact center of the screen
         drawTime(dc, cx, cy, timeStr, clock.sec, accent);
@@ -98,6 +96,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var graphH = 44;
         drawGraph(dc, cx - graphW / 2, (h * 0.645).toNumber(), graphW, graphH, _hrBars, false);
         drawGraph(dc, cx - graphW / 2, (h * 0.76).toNumber(), graphW, graphH, _stressBars, true);
+
+        drawBattery(dc, cx, h * 0.9);
     }
 
     // Accent ring around the edge with a faint inner ring and diamonds at 12, 3, 6 and 9
@@ -132,24 +132,6 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
         dc.setColor(color, Graphics.COLOR_TRANSPARENT);
         dc.fillPolygon([[cx, y - 5], [cx + 5, y], [cx, y + 5], [cx - 5, y]]);
-    }
-
-    // Heart rate on the left, battery in the middle, calories on the right
-    private function drawStats(dc as Dc, cx as Number, y as Numeric, activity as ActivityMonitor.Info) as Void {
-        var vcenter = Graphics.TEXT_JUSTIFY_VCENTER;
-
-        drawGradientIcon(dc, :heart, cx - 140, y, 11);
-        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx - 125, y, textFont(), getHeartRateString(), Graphics.TEXT_JUSTIFY_LEFT | vcenter);
-
-        drawBattery(dc, cx, y);
-
-        // Calories: lightning bolt and a compact number, e.g. "1.8k"
-        var calStr = formatCalories(Config.DEMO ? Demo.CALORIES : activity.calories);
-        var calRight = cx + 145;
-        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(calRight, y, textFont(), calStr, Graphics.TEXT_JUSTIFY_RIGHT | vcenter);
-        drawGradientIcon(dc, :bolt, calRight - dc.getTextWidthInPixels(calStr, textFont()) - 12, y, 12);
     }
 
     // Draws an icon in the clock's pale-to-accent vertical gradient, by drawing it
@@ -346,53 +328,61 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
     // ---------------------------------------------------------------- Weather
 
-    // One row: icon, temperature, wind
-    private function drawWeather(dc as Dc, cx as Number, y as Numeric) as Void {
-        if (!(Toybox has :Weather)) {
-            return;
-        }
-        var vcenter = Graphics.TEXT_JUSTIFY_VCENTER;
-        var cond = Weather.getCurrentConditions();
-        if (cond == null) {
-            dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, y, textFont(), "NO WEATHER", Graphics.TEXT_JUSTIFY_CENTER | vcenter);
-            return;
-        }
-
+    // One centered row: weather and temperature, wind, heart rate, calories
+    private function drawTopRow(dc as Dc, cx as Number, y as Numeric, activity as ActivityMonitor.Info) as Void {
         var settings = System.getDeviceSettings();
-
         var tempStr = "--°";
-        var temp = cond.temperature;
-        if (temp != null) {
-            if (settings.temperatureUnits == System.UNIT_STATUTE) {
-                temp = temp * 1.8 + 32;
-            }
-            tempStr = Math.round(temp).toNumber().toString() + "°";
-        }
-
-        // Wind speed as a bare number, in km/h or mph to match the watch's units
         var windStr = "--";
-        var speed = cond.windSpeed;
-        if (speed != null) {
-            windStr = Math.round(speed * (settings.distanceUnits == System.UNIT_STATUTE ? 2.237 : 3.6)).toNumber().toString();
+        var weatherKind = :cloud;
+
+        var cond = (Toybox has :Weather) ? Weather.getCurrentConditions() : null;
+        if (cond != null) {
+            weatherKind = getWeatherKind(cond.condition);
+            var temp = cond.temperature;
+            if (temp != null) {
+                if (settings.temperatureUnits == System.UNIT_STATUTE) {
+                    temp = temp * 1.8 + 32;
+                }
+                tempStr = Math.round(temp).toNumber().toString() + "°";
+            }
+            // Wind speed as a bare number, in km/h or mph to match the watch's units
+            var speed = cond.windSpeed;
+            if (speed != null) {
+                windStr = Math.round(speed * (settings.distanceUnits == System.UNIT_STATUTE ? 2.237 : 3.6)).toNumber().toString();
+            }
+        }
+        var hrStr = getHeartRateString();
+        var calStr = formatCalories(Config.DEMO ? Demo.CALORIES : activity.calories);
+
+        // Each item is an icon of a fixed width followed by its text
+        var font = textFont();
+        var kinds = [:weather, :wind, :heart, :bolt];
+        var iconWs = [42, 28, 24, 16];
+        var texts = [tempStr, windStr, hrStr, calStr];
+        var itemGap = 16;
+
+        var total = itemGap * (kinds.size() - 1);
+        for (var i = 0; i < kinds.size(); i++) {
+            total += iconWs[i] + dc.getTextWidthInPixels(texts[i], font);
         }
 
-        // Center the whole row
-        var iconW = 44;
-        var gap = 18;
-        var windIconW = 30;
-        var tempW = dc.getTextWidthInPixels(tempStr, textFont());
-        var windW = dc.getTextWidthInPixels(windStr, textFont());
-        var x = cx - (iconW + tempW + gap + windIconW + windW) / 2;
-
-        drawWeatherIcon(dc, x + 20, y, 18, getWeatherKind(cond.condition));
-        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(x + iconW, y, textFont(), tempStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
-
-        var windX = x + iconW + tempW + gap;
-        drawGradientIcon(dc, :wind, windX, y, 16);
-        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(windX + windIconW, y, textFont(), windStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
+        var x = cx - total / 2;
+        for (var i = 0; i < kinds.size(); i++) {
+            var kind = kinds[i];
+            if (kind == :weather) {
+                drawWeatherIcon(dc, x + 18, y, 18, weatherKind);
+            } else if (kind == :wind) {
+                drawGradientIcon(dc, :wind, x, y, 16);
+            } else if (kind == :heart) {
+                drawGradientIcon(dc, :heart, x + 10, y, 11);
+            } else {
+                drawGradientIcon(dc, :bolt, x + 6, y, 12);
+            }
+            x += iconWs[i];
+            dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(x, y, font, texts[i], Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+            x += dc.getTextWidthInPixels(texts[i], font) + itemGap;
+        }
     }
 
     // Three gusts, the outer two curling at the end
