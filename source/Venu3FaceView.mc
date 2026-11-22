@@ -18,18 +18,22 @@ class Venu3FaceView extends WatchUi.WatchFace {
     const GRAPH_MINUTES = 60;
     const GRAPH_BARS = 20;
 
+    // Every piece of text except the clock uses one scalable font at this pixel size
+    const TEXT_FONT_SIZE = 30;
+
     // Pixel sizes of the scalable time fonts
     const TIME_FONT_SIZE = 175;
     const SECONDS_FONT_SIZE = 64;
-    const DATE_FONT_SIZE = 26;
 
     // Fraction of the font's line height covered above (and below) the center by digit glyphs
     const GLYPH_HALF = 0.3;
 
-    const COLOR_MODERATE = 0xFFAA00;
-    const COLOR_VIGOROUS = 0xFF3300;
     const COLOR_HR = 0xFF2255;
     const COLOR_TRACK = 0x333333;
+
+    // Pale tint of the accent: top of the clock gradient and the colour of all plain text
+    const PALE_MIX = 0.8;
+    private var _pale as Number = 0xCCEEFF;
 
     // True while the watch is in always-on (low power) mode
     private var _isLowPower as Boolean = false;
@@ -71,6 +75,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         var activity = ActivityMonitor.getInfo();
         var accent = getAccentColor();
+        _pale = blendColor(accent, 0xFFFFFF, PALE_MIX);
 
         drawBorder(dc, cx, cy, accent);
 
@@ -78,30 +83,20 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         drawStats(dc, cx, h * 0.215, activity);
 
-        drawDivider(dc, cx, h * 0.3, 120, accent);
+        drawIntensity(dc, cx, (h * 0.275).toNumber(), activity, accent);
+
+        drawDivider(dc, cx, h * 0.345, 120, accent);
 
         // Time sits in the exact center of the screen
         drawTime(dc, cx, cy, timeStr, clock.sec, accent);
 
+        drawDivider(dc, cx, h * 0.625, 140, accent);
+
         // Heart rate and stress graphs below the time
-        var graphW = 250;
-        var graphH = 28;
-        drawGraph(dc, cx - graphW / 2, (h * 0.635).toNumber(), graphW, graphH, _hrBars, false);
-
-        drawDivider(dc, cx, h * 0.722, 140, accent);
-
-        // Stress graph, latest value beside it
-        var stressY = (h * 0.74).toNumber();
-        var stress = drawGraph(dc, cx - graphW / 2, stressY, graphW, graphH, _stressBars, true);
-        if (stress != null) {
-            dc.setColor(getStressColor(stress), Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx + graphW / 2 + 6, stressY + graphH / 2, Graphics.FONT_XTINY, stress.toString(),
-                Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
-        }
-
-        drawDivider(dc, cx, h * 0.82, 110, accent);
-
-        drawIntensity(dc, cx, (h * 0.845).toNumber(), activity);
+        var graphW = 240;
+        var graphH = 44;
+        drawGraph(dc, cx - graphW / 2, (h * 0.645).toNumber(), graphW, graphH, _hrBars, false);
+        drawGraph(dc, cx - graphW / 2, (h * 0.76).toNumber(), graphW, graphH, _stressBars, true);
     }
 
     // Accent ring around the edge with a faint inner ring and diamonds at 12, 3, 6 and 9
@@ -144,18 +139,18 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         dc.setColor(COLOR_HR, Graphics.COLOR_TRANSPARENT);
         drawHeart(dc, cx - 140, y, 9);
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx - 125, y, Graphics.FONT_TINY, getHeartRateString(), Graphics.TEXT_JUSTIFY_LEFT | vcenter);
+        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx - 125, y, textFont(), getHeartRateString(), Graphics.TEXT_JUSTIFY_LEFT | vcenter);
 
         drawBattery(dc, cx, y);
 
         // Calories: lightning bolt and a compact number, e.g. "1.8k"
         var calStr = formatCalories(Config.DEMO ? Demo.CALORIES : activity.calories);
         var calRight = cx + 145;
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(calRight, y, Graphics.FONT_TINY, calStr, Graphics.TEXT_JUSTIFY_RIGHT | vcenter);
+        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(calRight, y, textFont(), calStr, Graphics.TEXT_JUSTIFY_RIGHT | vcenter);
         dc.setColor(0xFFCC00, Graphics.COLOR_TRANSPARENT);
-        drawBolt(dc, calRight - dc.getTextWidthInPixels(calStr, Graphics.FONT_TINY) - 12, y);
+        drawBolt(dc, calRight - dc.getTextWidthInPixels(calStr, textFont()) - 12, y);
     }
 
     private function formatCalories(calories as Number?) as String {
@@ -172,13 +167,13 @@ class Venu3FaceView extends WatchUi.WatchFace {
         dc.fillPolygon([[x + 3, y - 11], [x - 6, y + 2], [x, y + 2], [x - 3, y + 11], [x + 6, y - 2], [x, y - 2]]);
     }
 
-    // Battery outline with a colored fill level, then the percentage
+    // Battery outline with a colored fill level
     private function drawBattery(dc as Dc, cx as Number, y as Numeric) as Void {
         var pct = System.getSystemStats().battery;
         var color = pct > 50 ? 0x00CC44 : (pct > 20 ? 0xFFCC00 : 0xFF2200);
         var bw = 30;
         var bh = 16;
-        var bx = cx - 52;
+        var bx = cx - bw / 2;
         var by = y - bh / 2;
 
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
@@ -192,9 +187,6 @@ class Venu3FaceView extends WatchUi.WatchFace {
             dc.setColor(color, Graphics.COLOR_TRANSPARENT);
             dc.fillRectangle(bx + 3, by + 3, fillW, bh - 6);
         }
-
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(bx + bw + 8, y, Graphics.FONT_XTINY, pct.toNumber() + "%", Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
     // ---------------------------------------------------------------- Time
@@ -215,7 +207,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var tw = dc.getTextWidthInPixels(timeStr, font);
         var sw = dc.getTextWidthInPixels(secStr, secFont);
         var colW = sw;
-        var dateFont = _dateFont as Graphics.FontType;
+        var dateFont = textFont();
         var monthW = dc.getTextWidthInPixels(monthStr, dateFont);
         colW = monthW > colW ? monthW : colW;
         var secGap = 4;
@@ -235,7 +227,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var justify = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
         dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
         dc.drawText(colX + 2, glyphTop + 10, dateFont, monthStr, justify);
-        dc.drawText(colX + 2, glyphTop + 36, dateFont, dateStr, justify);
+        dc.drawText(colX + 2, glyphTop + 38, dateFont, dateStr, justify);
 
         // Seconds share the baseline of the big digits, same style at a smaller scale
         var sfh = dc.getFontHeight(secFont);
@@ -257,7 +249,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var glyphTop = cy - fh * GLYPH_HALF;
         var glyphH = fh * 2 * GLYPH_HALF;
         var band = fh > 100 ? 4 : 2;
-        var topColor = blendColor(accent, 0xFFFFFF, 0.6);
+        var topColor = _pale;
         for (var y = cy - fh / 2; y < cy + fh / 2; y += band) {
             var t = (y - glyphTop) / glyphH;
             t = t < 0 ? 0.0 : (t > 1 ? 1.0 : t);
@@ -272,7 +264,22 @@ class Venu3FaceView extends WatchUi.WatchFace {
     // Fall back to built-in fonts on devices without scalable fonts.
     private var _timeFont as Graphics.FontType? = null;
     private var _secondsFont as Graphics.FontType? = null;
-    private var _dateFont as Graphics.FontType? = null;
+
+    private var _textFont as Graphics.FontType? = null;
+
+    // The shared text font, falling back to the built-in "tiny" size
+    private function textFont() as Graphics.FontType {
+        if (_textFont == null) {
+            _textFont = Graphics.FONT_TINY;
+            if (Graphics has :getVectorFont) {
+                var tf = Graphics.getVectorFont({:face => "RobotoRegular", :size => TEXT_FONT_SIZE});
+                if (tf != null) {
+                    _textFont = tf;
+                }
+            }
+        }
+        return _textFont as Graphics.FontType;
+    }
 
     private function loadTimeFonts() as Void {
         if (_timeFont != null) {
@@ -280,7 +287,6 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
         _timeFont = Graphics.FONT_NUMBER_THAI_HOT;
         _secondsFont = Graphics.FONT_NUMBER_MILD;
-        _dateFont = Graphics.FONT_XTINY;
         if (Graphics has :getVectorFont) {
             var vf = Graphics.getVectorFont({:face => "YantramanavRegular", :size => TIME_FONT_SIZE});
             if (vf != null) {
@@ -289,10 +295,6 @@ class Venu3FaceView extends WatchUi.WatchFace {
             var sf = Graphics.getVectorFont({:face => "YantramanavRegular", :size => SECONDS_FONT_SIZE});
             if (sf != null) {
                 _secondsFont = sf;
-            }
-            var df = Graphics.getVectorFont({:face => "RobotoRegular", :size => DATE_FONT_SIZE});
-            if (df != null) {
-                _dateFont = df;
             }
         }
     }
@@ -321,7 +323,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var cond = Weather.getCurrentConditions();
         if (cond == null) {
             dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, y, Graphics.FONT_XTINY, "NO WEATHER", Graphics.TEXT_JUSTIFY_CENTER | vcenter);
+            dc.drawText(cx, y, textFont(), "NO WEATHER", Graphics.TEXT_JUSTIFY_CENTER | vcenter);
             return;
         }
 
@@ -347,17 +349,17 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var iconW = 44;
         var gap = 18;
         var windIconW = 30;
-        var tempW = dc.getTextWidthInPixels(tempStr, Graphics.FONT_TINY);
-        var windW = dc.getTextWidthInPixels(windStr, Graphics.FONT_TINY);
+        var tempW = dc.getTextWidthInPixels(tempStr, textFont());
+        var windW = dc.getTextWidthInPixels(windStr, textFont());
         var x = cx - (iconW + tempW + gap + windIconW + windW) / 2;
 
         drawWeatherIcon(dc, x + 20, y, 18, getWeatherKind(cond.condition));
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(x + iconW, y, Graphics.FONT_TINY, tempStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
+        dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x + iconW, y, textFont(), tempStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
 
         var windX = x + iconW + tempW + gap;
         drawWindIcon(dc, windX, y);
-        dc.drawText(windX + windIconW, y, Graphics.FONT_TINY, windStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
+        dc.drawText(windX + windIconW, y, textFont(), windStr, Graphics.TEXT_JUSTIFY_LEFT | vcenter);
     }
 
     // Three gusts, the outer two curling at the end
@@ -513,9 +515,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
         return bars;
     }
 
-    // Draws the bars and returns the latest value (or null if there is no data)
     private function drawGraph(dc as Dc, x as Number, y as Number, gw as Number, gh as Number,
-            bars as Array<Number?>, isStress as Boolean) as Number? {
+            bars as Array<Number?>, isStress as Boolean) as Void {
         // HR is auto-scaled to its own range; stress is always 0-100
         var lo = 0;
         var hi = 100;
@@ -543,7 +544,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         dc.drawLine(x, y + gh, x + gw, y + gh);
 
         if (latest == null || hi <= lo) {
-            return null;
+            return;
         }
 
         var barW = gw.toFloat() / GRAPH_BARS;
@@ -559,7 +560,6 @@ class Venu3FaceView extends WatchUi.WatchFace {
             dc.setColor(isStress ? getStressColor(v) : getHeartRateColor(v), Graphics.COLOR_TRANSPARENT);
             dc.fillRectangle(x + i * barW, y + gh - barH, barW - 1, barH);
         }
-        return latest;
     }
 
     // Same bands Garmin uses: rest / low / medium / high
@@ -600,14 +600,16 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
     // Rolling 7 days: one block per day (today on the right), each filling towards
     // 1/7 of the weekly goal with moderate then vigorous minutes
-    // (vigorous minutes count double, as Garmin counts them).
-    private function drawIntensity(dc as Dc, cx as Number, y as Number, info as ActivityMonitor.Info) as Void {
+    // (vigorous minutes count double, as Garmin counts them). Colours match the clock
+    // gradient: moderate in the light tint, vigorous in the full accent.
+    private function drawIntensity(dc as Dc, cx as Number, y as Number, info as ActivityMonitor.Info, accent as Number) as Void {
         var goal = info.activeMinutesWeekGoal;
         if (goal == null || goal <= 0) {
             goal = 150;
         }
         var dailyTarget = (goal + 6) / 7;
         var days = getLast7Days(info);
+        var lightAccent = _pale;
 
         var blockW = 30;
         var blockH = 14;
@@ -628,18 +630,18 @@ class Venu3FaceView extends WatchUi.WatchFace {
                 var modW = moderate * blockW / scale;
                 var vigW = vigorous * blockW / scale;
                 if (modW > 0) {
-                    dc.setColor(COLOR_MODERATE, Graphics.COLOR_TRANSPARENT);
+                    dc.setColor(lightAccent, Graphics.COLOR_TRANSPARENT);
                     dc.fillRoundedRectangle(bx, y, modW, blockH, 3);
                 }
                 if (vigW > 0) {
-                    dc.setColor(COLOR_VIGOROUS, Graphics.COLOR_TRANSPARENT);
+                    dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
                     dc.fillRoundedRectangle(bx + modW, y, vigW, blockH, 3);
                 }
             }
         }
 
         // Outline today's block
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(lightAccent, Graphics.COLOR_TRANSPARENT);
         dc.drawRoundedRectangle(x + 6 * (blockW + gap) - 2, y - 2, blockW + 4, blockH + 4, 4);
     }
 
