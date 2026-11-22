@@ -18,6 +18,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
     const GRAPH_MINUTES = 60;
     const GRAPH_BARS = 20;
 
+    // Height in pixels of every icon in the top row
+    const ICON_H = 24;
+
     // Every piece of text except the clock uses one scalable font at this pixel size
     const TEXT_FONT_SIZE = 30;
 
@@ -80,9 +83,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         drawBorder(dc, cx, cy, accent);
 
-        drawIntensity(dc, cx, (h * 0.15).toNumber(), activity, accent);
+        drawIntensity(dc, cx, (h * 0.14).toNumber(), activity, accent);
 
-        drawTopRow(dc, cx, h * 0.235, activity);
+        drawTopRow(dc, cx, h * 0.255, activity);
 
         drawDivider(dc, cx, h * 0.35, 120, accent);
 
@@ -100,38 +103,43 @@ class Venu3FaceView extends WatchUi.WatchFace {
         drawBattery(dc, cx, h * 0.09);
     }
 
-    // Accent ring around the edge with a faint inner ring and diamonds at 12, 3, 6 and 9
+    // Solid ring around the edge in the clock gradient: pale at the top, accent at the bottom.
+    // Drawn as short arcs, each coloured by its height. Diamonds at 12, 3, 6 and 9.
     private function drawBorder(dc as Dc, cx as Number, cy as Number, accent as Number) as Void {
-        var r = cx - 4;
-        dc.setPenWidth(3);
-        dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
-        dc.drawCircle(cx, cy, r);
+        var r = cx - 5;
+        var step = 5;
+        dc.setPenWidth(6);
+        for (var a = 0; a < 360; a += step) {
+            var t = (1 - Math.sin(Math.toRadians(a + step / 2.0))) / 2;
+            dc.setColor(blendColor(_pale, accent, t.toFloat()), Graphics.COLOR_TRANSPARENT);
+            // One degree of overlap so no gaps show between arcs
+            dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, a, a + step + 1);
+        }
         dc.setPenWidth(1);
-        dc.setColor(blendColor(accent, 0x000000, 0.6), Graphics.COLOR_TRANSPARENT);
-        dc.drawCircle(cx, cy, r - 7);
 
-        dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
-        var d = r - 4;
+        var d = r - 9;
         var s = 6;
         var points = [[cx, cy - d], [cx + d, cy], [cx, cy + d], [cx - d, cy]];
+        var shades = [0.0, 0.5, 1.0, 0.5];
         for (var i = 0; i < points.size(); i++) {
             var px = points[i][0];
             var py = points[i][1];
+            dc.setColor(blendColor(_pale, accent, shades[i]), Graphics.COLOR_TRANSPARENT);
             dc.fillPolygon([[px, py - s], [px + s, py], [px, py + s], [px - s, py]]);
         }
     }
 
-    // Thin line that fades out towards both ends, with a small diamond in the middle
+    // Gradient bar: pale in the middle, accent further out, fading to black at both ends
     private function drawDivider(dc as Dc, cx as Number, y as Numeric, half as Number, color as Number) as Void {
-        var steps = 12;
+        var steps = 24;
         var stepW = half.toFloat() / steps;
         for (var i = 0; i < steps; i++) {
-            dc.setColor(blendColor(color, 0x000000, 0.35 + 0.65 * i / steps), Graphics.COLOR_TRANSPARENT);
-            dc.fillRectangle(cx + 8 + i * stepW, y - 1, stepW + 1, 2);
-            dc.fillRectangle(cx - 8 - (i + 1) * stepW, y - 1, stepW + 1, 2);
+            var t = i.toFloat() / steps;
+            var c = t < 0.5 ? blendColor(_pale, color, t * 2) : blendColor(color, 0x000000, (t - 0.5) * 2);
+            dc.setColor(c, Graphics.COLOR_TRANSPARENT);
+            dc.fillRectangle(cx + i * stepW, y - 2, stepW + 1, 4);
+            dc.fillRectangle(cx - (i + 1) * stepW, y - 2, stepW + 1, 4);
         }
-        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-        dc.fillPolygon([[cx, y - 5], [cx + 5, y], [cx, y + 5], [cx - 5, y]]);
     }
 
     // Draws an icon in the clock's pale-to-accent vertical gradient, by drawing it
@@ -142,11 +150,11 @@ class Venu3FaceView extends WatchUi.WatchFace {
             dc.setClip(x - 40, by, 80, 2);
             dc.setColor(blendColor(_pale, _accent, (by - top).toFloat() / (2 * half)), Graphics.COLOR_TRANSPARENT);
             if (kind == :heart) {
-                drawHeart(dc, x, y, 9);
+                drawHeart(dc, x, y - 1, ICON_H / 2);
             } else if (kind == :bolt) {
-                drawBolt(dc, x, y);
+                drawBolt(dc, x, y, ICON_H / 22.0);
             } else if (kind == :wind) {
-                drawWindIcon(dc, x, y);
+                drawWindIcon(dc, x, y, (ICON_H - 2) / 30.0); // minus the line thickness
             } else if (kind == :battery) {
                 drawBatteryShape(dc, x, y);
             }
@@ -164,8 +172,10 @@ class Venu3FaceView extends WatchUi.WatchFace {
         return (calories / 1000.0).format("%.1f") + "k";
     }
 
-    private function drawBolt(dc as Dc, x as Numeric, y as Numeric) as Void {
-        dc.fillPolygon([[x + 3, y - 11], [x - 6, y + 2], [x, y + 2], [x - 3, y + 11], [x + 6, y - 2], [x, y - 2]]);
+    // Lightning bolt, 22px tall at scale 1
+    private function drawBolt(dc as Dc, x as Numeric, y as Numeric, k as Float) as Void {
+        dc.fillPolygon([[x + 3 * k, y - 11 * k], [x - 6 * k, y + 2 * k], [x, y + 2 * k],
+                        [x - 3 * k, y + 11 * k], [x + 6 * k, y - 2 * k], [x, y - 2 * k]]);
     }
 
     // Battery outline and fill level in the clock gradient; the fill turns red when low
@@ -357,7 +367,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         // Each item is an icon of a fixed width followed by its text
         var font = textFont();
         var kinds = [:weather, :wind, :heart, :bolt];
-        var iconWs = [42, 28, 24, 16];
+        var iconWs = [32, 26, 32, 18];
         var texts = [tempStr, windStr, hrStr, calStr];
         var itemGap = 16;
 
@@ -370,13 +380,13 @@ class Venu3FaceView extends WatchUi.WatchFace {
         for (var i = 0; i < kinds.size(); i++) {
             var kind = kinds[i];
             if (kind == :weather) {
-                drawWeatherIcon(dc, x + 18, y, 18, weatherKind);
+                drawWeatherIcon(dc, x + 13, y + 2, ICON_H / 2, weatherKind);
             } else if (kind == :wind) {
-                drawGradientIcon(dc, :wind, x, y, 16);
+                drawGradientIcon(dc, :wind, x, y, ICON_H / 2 + 1);
             } else if (kind == :heart) {
-                drawGradientIcon(dc, :heart, x + 10, y, 11);
+                drawGradientIcon(dc, :heart, x + 13, y, ICON_H / 2 + 1);
             } else {
-                drawGradientIcon(dc, :bolt, x + 6, y, 12);
+                drawGradientIcon(dc, :bolt, x + 7, y, ICON_H / 2 + 1);
             }
             x += iconWs[i];
             dc.setColor(_pale, Graphics.COLOR_TRANSPARENT);
@@ -385,14 +395,14 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
     }
 
-    // Three gusts, the outer two curling at the end
-    private function drawWindIcon(dc as Dc, x as Numeric, y as Numeric) as Void {
+    // Three gusts, the outer two curling at the end; 30px tall at scale 1
+    private function drawWindIcon(dc as Dc, x as Numeric, y as Numeric, k as Float) as Void {
         dc.setPenWidth(3);
-        dc.drawLine(x, y - 7, x + 16, y - 7);
-        dc.drawArc(x + 16, y - 11, 4, Graphics.ARC_COUNTER_CLOCKWISE, 270, 180);
-        dc.drawLine(x + 3, y, x + 22, y);
-        dc.drawLine(x, y + 7, x + 12, y + 7);
-        dc.drawArc(x + 12, y + 11, 4, Graphics.ARC_CLOCKWISE, 90, 180);
+        dc.drawLine(x, y - 7 * k, x + 16 * k, y - 7 * k);
+        dc.drawArc(x + 16 * k, y - 11 * k, 4 * k, Graphics.ARC_COUNTER_CLOCKWISE, 270, 180);
+        dc.drawLine(x + 3 * k, y, x + 22 * k, y);
+        dc.drawLine(x, y + 7 * k, x + 12 * k, y + 7 * k);
+        dc.drawArc(x + 12 * k, y + 11 * k, 4 * k, Graphics.ARC_CLOCKWISE, 90, 180);
         dc.setPenWidth(1);
     }
 
