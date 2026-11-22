@@ -19,8 +19,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
     const GRAPH_BARS = 20;
 
     // Pixel sizes of the scalable time fonts
-    const TIME_FONT_SIZE = 188;
-    const SECONDS_FONT_SIZE = 72;
+    const TIME_FONT_SIZE = 175;
+    const SECONDS_FONT_SIZE = 64;
+    const DATE_FONT_SIZE = 26;
 
     // Fraction of the font's line height covered above (and below) the center by digit glyphs
     const GLYPH_HALF = 0.3;
@@ -73,23 +74,24 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         drawBorder(dc, cx, cy, accent);
 
-        drawWeather(dc, cx, h * 0.09);
+        drawWeather(dc, cx, h * 0.12);
 
-        // Heart rate graph across the top
+        drawStats(dc, cx, h * 0.215, activity);
+
+        drawDivider(dc, cx, h * 0.3, 120, accent);
+
+        // Time sits in the exact center of the screen
+        drawTime(dc, cx, cy, timeStr, clock.sec, accent);
+
+        // Heart rate and stress graphs below the time
         var graphW = 250;
-        var graphH = 32;
-        drawGraph(dc, cx - graphW / 2, (h * 0.132).toNumber(), graphW, graphH, _hrBars, false);
+        var graphH = 28;
+        drawGraph(dc, cx - graphW / 2, (h * 0.635).toNumber(), graphW, graphH, _hrBars, false);
 
-        drawDivider(dc, cx, h * 0.232, 120, accent);
+        drawDivider(dc, cx, h * 0.722, 140, accent);
 
-        drawTime(dc, cx, (h * 0.435).toNumber(), timeStr, clock.sec, accent);
-
-        drawStats(dc, cx, h * 0.625, activity);
-
-        drawDivider(dc, cx, h * 0.672, 140, accent);
-
-        // Stress graph across the bottom, latest value beside it
-        var stressY = (h * 0.695).toNumber();
+        // Stress graph, latest value beside it
+        var stressY = (h * 0.74).toNumber();
         var stress = drawGraph(dc, cx - graphW / 2, stressY, graphW, graphH, _stressBars, true);
         if (stress != null) {
             dc.setColor(getStressColor(stress), Graphics.COLOR_TRANSPARENT);
@@ -97,9 +99,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
                 Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
         }
 
-        drawDivider(dc, cx, h * 0.79, 110, accent);
+        drawDivider(dc, cx, h * 0.82, 110, accent);
 
-        drawIntensity(dc, cx, (h * 0.815).toNumber(), activity);
+        drawIntensity(dc, cx, (h * 0.845).toNumber(), activity);
     }
 
     // Accent ring around the edge with a faint inner ring and diamonds at 12, 3, 6 and 9
@@ -141,19 +143,33 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var vcenter = Graphics.TEXT_JUSTIFY_VCENTER;
 
         dc.setColor(COLOR_HR, Graphics.COLOR_TRANSPARENT);
-        drawHeart(dc, cx - 172, y, 9);
+        drawHeart(dc, cx - 140, y, 9);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx - 156, y, Graphics.FONT_TINY, getHeartRateString(), Graphics.TEXT_JUSTIFY_LEFT | vcenter);
+        dc.drawText(cx - 125, y, Graphics.FONT_TINY, getHeartRateString(), Graphics.TEXT_JUSTIFY_LEFT | vcenter);
 
         drawBattery(dc, cx, y);
 
-        var calories = Config.DEMO ? Demo.CALORIES : activity.calories;
-        var kcalRight = cx + 182;
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(kcalRight, y + 3, Graphics.FONT_XTINY, "kcal", Graphics.TEXT_JUSTIFY_RIGHT | vcenter);
+        // Calories: lightning bolt and a compact number, e.g. "1.8k"
+        var calStr = formatCalories(Config.DEMO ? Demo.CALORIES : activity.calories);
+        var calRight = cx + 145;
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(kcalRight - dc.getTextWidthInPixels("kcal ", Graphics.FONT_XTINY), y, Graphics.FONT_TINY,
-            (calories != null ? calories.toString() : "--"), Graphics.TEXT_JUSTIFY_RIGHT | vcenter);
+        dc.drawText(calRight, y, Graphics.FONT_TINY, calStr, Graphics.TEXT_JUSTIFY_RIGHT | vcenter);
+        dc.setColor(0xFFCC00, Graphics.COLOR_TRANSPARENT);
+        drawBolt(dc, calRight - dc.getTextWidthInPixels(calStr, Graphics.FONT_TINY) - 12, y);
+    }
+
+    private function formatCalories(calories as Number?) as String {
+        if (calories == null) {
+            return "--";
+        }
+        if (calories < 1000) {
+            return calories.toString();
+        }
+        return (calories / 1000.0).format("%.1f") + "k";
+    }
+
+    private function drawBolt(dc as Dc, x as Numeric, y as Numeric) as Void {
+        dc.fillPolygon([[x + 3, y - 11], [x - 6, y + 2], [x, y + 2], [x - 3, y + 11], [x + 6, y - 2], [x, y - 2]]);
     }
 
     // Battery outline with a colored fill level, then the percentage
@@ -162,7 +178,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var color = pct > 50 ? 0x00CC44 : (pct > 20 ? 0xFFCC00 : 0xFF2200);
         var bw = 30;
         var bh = 16;
-        var bx = cx - 66;
+        var bx = cx - 52;
         var by = y - bh / 2;
 
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
@@ -199,12 +215,14 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var tw = dc.getTextWidthInPixels(timeStr, font);
         var sw = dc.getTextWidthInPixels(secStr, secFont);
         var colW = sw;
-        var monthW = dc.getTextWidthInPixels(monthStr, Graphics.FONT_XTINY);
+        var dateFont = _dateFont as Graphics.FontType;
+        var monthW = dc.getTextWidthInPixels(monthStr, dateFont);
         colW = monthW > colW ? monthW : colW;
         var secGap = 4;
-        var left = cx - (tw + secGap + colW) / 2;
-        // Keep the month clear of the border ring on wide times like "08:08"
-        var maxRight = cx + 188;
+        // The big digits are centered; the column hangs off to the right.
+        // If a wide time would push the column into the border ring, shift left just enough.
+        var left = cx - tw / 2;
+        var maxRight = cx + 200;
         if (left + tw + secGap + colW > maxRight) {
             left = maxRight - (tw + secGap + colW);
         }
@@ -216,8 +234,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var glyphTop = cy - fh * GLYPH_HALF;
         var justify = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
         dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(colX + 2, glyphTop + 10, Graphics.FONT_XTINY, monthStr, justify);
-        dc.drawText(colX + 2, glyphTop + 38, Graphics.FONT_XTINY, dateStr, justify);
+        dc.drawText(colX + 2, glyphTop + 10, dateFont, monthStr, justify);
+        dc.drawText(colX + 2, glyphTop + 36, dateFont, dateStr, justify);
 
         // Seconds share the baseline of the big digits, same style at a smaller scale
         var sfh = dc.getFontHeight(secFont);
@@ -253,6 +271,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
     // Fall back to built-in fonts on devices without scalable fonts.
     private var _timeFont as Graphics.FontType? = null;
     private var _secondsFont as Graphics.FontType? = null;
+    private var _dateFont as Graphics.FontType? = null;
 
     private function loadTimeFonts() as Void {
         if (_timeFont != null) {
@@ -260,6 +279,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
         _timeFont = Graphics.FONT_NUMBER_THAI_HOT;
         _secondsFont = Graphics.FONT_NUMBER_MILD;
+        _dateFont = Graphics.FONT_XTINY;
         if (Graphics has :getVectorFont) {
             var vf = Graphics.getVectorFont({:face => "YantramanavRegular", :size => TIME_FONT_SIZE});
             if (vf != null) {
@@ -268,6 +288,10 @@ class Venu3FaceView extends WatchUi.WatchFace {
             var sf = Graphics.getVectorFont({:face => "YantramanavRegular", :size => SECONDS_FONT_SIZE});
             if (sf != null) {
                 _secondsFont = sf;
+            }
+            var df = Graphics.getVectorFont({:face => "RobotoRegular", :size => DATE_FONT_SIZE});
+            if (df != null) {
+                _dateFont = df;
             }
         }
     }
@@ -584,9 +608,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var dailyTarget = (goal + 6) / 7;
         var days = getLast7Days(info);
 
-        var blockW = 34;
+        var blockW = 30;
         var blockH = 14;
-        var gap = 5;
+        var gap = 4;
         var x = cx - (7 * blockW + 6 * gap) / 2;
 
         for (var i = 0; i < 7; i++) {
