@@ -74,21 +74,25 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         // Heart rate graph across the top
         var graphW = 250;
-        var graphH = 34;
-        drawGraph(dc, cx - graphW / 2, (h * 0.15).toNumber(), graphW, graphH, _hrBars, false);
+        var graphH = 32;
+        drawGraph(dc, cx - graphW / 2, (h * 0.132).toNumber(), graphW, graphH, _hrBars, false);
+
+        drawDivider(dc, cx, h * 0.232, 120, accent);
 
         // Date, e.g. "SAT 22 NOV"
         var info = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
         var dateStr = Lang.format("$1$ $2$ $3$", [info.day_of_week, info.day, info.month]).toUpper();
         dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.275, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(cx, h * 0.278, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
         drawTime(dc, cx, (h * 0.455).toNumber(), timeStr, clock.sec, accent);
 
-        drawStats(dc, cx, h * 0.63, activity);
+        drawStats(dc, cx, h * 0.625, activity);
+
+        drawDivider(dc, cx, h * 0.672, 140, accent);
 
         // Stress graph across the bottom, latest value beside it
-        var stressY = (h * 0.68).toNumber();
+        var stressY = (h * 0.695).toNumber();
         var stress = drawGraph(dc, cx - graphW / 2, stressY, graphW, graphH, _stressBars, true);
         if (stress != null) {
             dc.setColor(getStressColor(stress), Graphics.COLOR_TRANSPARENT);
@@ -96,7 +100,22 @@ class Venu3FaceView extends WatchUi.WatchFace {
                 Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
         }
 
-        drawIntensity(dc, cx, (h * 0.80).toNumber(), activity);
+        drawDivider(dc, cx, h * 0.79, 110, accent);
+
+        drawIntensity(dc, cx, (h * 0.815).toNumber(), activity);
+    }
+
+    // Thin line that fades out towards both ends, with a small diamond in the middle
+    private function drawDivider(dc as Dc, cx as Number, y as Numeric, half as Number, color as Number) as Void {
+        var steps = 12;
+        var stepW = half.toFloat() / steps;
+        for (var i = 0; i < steps; i++) {
+            dc.setColor(blendColor(color, 0x000000, 0.35 + 0.65 * i / steps), Graphics.COLOR_TRANSPARENT);
+            dc.fillRectangle(cx + 8 + i * stepW, y - 1, stepW + 1, 2);
+            dc.fillRectangle(cx - 8 - (i + 1) * stepW, y - 1, stepW + 1, 2);
+        }
+        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        dc.fillPolygon([[cx, y - 5], [cx + 5, y], [cx, y + 5], [cx - 5, y]]);
     }
 
     // Heart rate on the left, battery in the middle, calories on the right
@@ -146,14 +165,11 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
     // ---------------------------------------------------------------- Time
 
-    // Large time with a drop shadow and a vertical gradient from white into the accent color,
-    // with smaller seconds to the right. The gradient is made by drawing the text once per
-    // horizontal band, clipped to that band.
+    // Large gradient time with smaller gradient seconds to the right
     private function drawTime(dc as Dc, cx as Number, cy as Number, timeStr as String, sec as Number, accent as Number) as Void {
         loadTimeFonts();
         var font = _timeFont as Graphics.FontType;
         var secFont = _secondsFont as Graphics.FontType;
-        var justify = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
         var secStr = sec.format("%02d");
 
         var fh = dc.getFontHeight(font);
@@ -162,27 +178,36 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var secGap = 4;
         var left = cx - (tw + secGap + sw) / 2;
 
+        drawGradientText(dc, left, cy, font, timeStr, tw, accent, 4);
+
+        // Seconds share the baseline of the big digits, same style at a smaller scale
+        var sfh = dc.getFontHeight(secFont);
+        var secY = (cy + fh * GLYPH_HALF - sfh * GLYPH_HALF).toNumber();
+        drawGradientText(dc, left + tw + secGap, secY, secFont, secStr, sw, accent, 2);
+    }
+
+    // Text with a drop shadow and a vertical gradient from white into the accent color.
+    // The gradient is made by drawing the text once per horizontal band, clipped to that band.
+    private function drawGradientText(dc as Dc, left as Number, cy as Number, font as Graphics.FontType,
+            text as String, tw as Number, accent as Number, shadow as Number) as Void {
+        var justify = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
+        var fh = dc.getFontHeight(font);
+
         dc.setColor(blendColor(accent, 0x000000, 0.65), Graphics.COLOR_TRANSPARENT);
-        dc.drawText(left + 4, cy + 4, font, timeStr, justify);
+        dc.drawText(left + shadow, cy + shadow, font, text, justify);
 
         // Digits only fill the middle part of the font's line height
         var glyphTop = cy - fh * GLYPH_HALF;
         var glyphH = fh * 2 * GLYPH_HALF;
-        var band = 4;
+        var band = fh > 100 ? 4 : 2;
         for (var y = cy - fh / 2; y < cy + fh / 2; y += band) {
             var t = (y - glyphTop) / glyphH;
             t = t < 0 ? 0.0 : (t > 1 ? 1.0 : t);
             dc.setClip(left - 2, y, tw + 4, band);
             dc.setColor(blendColor(0xFFFFFF, accent, t.toFloat()), Graphics.COLOR_TRANSPARENT);
-            dc.drawText(left, cy, font, timeStr, justify);
+            dc.drawText(left, cy, font, text, justify);
         }
         dc.clearClip();
-
-        // Seconds share the baseline of the big digits
-        var sfh = dc.getFontHeight(secFont);
-        var secY = cy + fh * GLYPH_HALF - sfh * GLYPH_HALF;
-        dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(left + tw + secGap, secY, secFont, secStr, justify);
     }
 
     // Scaled-up versions of the system number font, bigger than any built-in size.
@@ -505,16 +530,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
     // ---------------------------------------------------------------- Intensity minutes
 
-    // Garmin counts each vigorous minute twice towards the goal
-    private function weighted(am as ActivityMonitor.ActiveMinutes?) as Number {
-        if (am == null) {
-            return 0;
-        }
-        return am.moderate + 2 * am.vigorous;
-    }
-
     // Rolling 7 days: one block per day (today on the right), each filling towards
-    // 1/7 of the weekly goal with moderate then vigorous minutes. Totals underneath.
+    // 1/7 of the weekly goal with moderate then vigorous minutes
+    // (vigorous minutes count double, as Garmin counts them).
     private function drawIntensity(dc as Dc, cx as Number, y as Number, info as ActivityMonitor.Info) as Void {
         var goal = info.activeMinutesWeekGoal;
         if (goal == null || goal <= 0) {
@@ -527,7 +545,6 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var blockH = 14;
         var gap = 5;
         var x = cx - (7 * blockW + 6 * gap) / 2;
-        var total = 0;
 
         for (var i = 0; i < 7; i++) {
             var am = days[i];
@@ -536,7 +553,6 @@ class Venu3FaceView extends WatchUi.WatchFace {
             dc.fillRoundedRectangle(bx, y, blockW, blockH, 3);
 
             if (am != null) {
-                total += weighted(am);
                 var modW = am.moderate * blockW / dailyTarget;
                 modW = modW > blockW ? blockW : modW;
                 var vigW = 2 * am.vigorous * blockW / dailyTarget;
@@ -555,11 +571,6 @@ class Venu3FaceView extends WatchUi.WatchFace {
         // Outline today's block
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         dc.drawRoundedRectangle(x + 6 * (blockW + gap) - 2, y - 2, blockW + 4, blockH + 4, 4);
-
-        var today = weighted(info.activeMinutesDay);
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, y + blockH + 22, Graphics.FONT_XTINY, today + " MIN  /  " + total + " OF " + goal,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
     // Active minutes for the last 7 days, oldest first, today last. Missing days are null.
