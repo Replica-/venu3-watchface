@@ -13,10 +13,11 @@ import Toybox.WatchUi;
 
 class Venu3FaceView extends WatchUi.WatchFace {
 
-    // Both graphs use 1.5-minute bars on one shared grid so their bars line up.
-    // Heart rate covers the last hour; the narrower stress graph covers fewer bars.
+    // Both graphs use 1.5-minute bars of the same pixel width on one shared grid so
+    // their bars line up. Heart rate shows 51 minutes; the narrower stress graph 42.
     const BAR_SECONDS = 90;
-    const HR_BARS = 40;
+    const BAR_PX = 8.25;
+    const HR_BARS = 34;
     const STRESS_BARS = 28;
 
     // Height in pixels of every icon in the icon row, and that row's text size
@@ -29,6 +30,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
     // Pixel sizes of the scalable time fonts
     const TIME_FONT_SIZE = 205;
     const SECONDS_FONT_SIZE = 74;
+    const AMPM_FONT_SIZE = 40;
 
     // Fraction of the font's line height covered above (and below) the center by digit glyphs
     const GLYPH_HALF = 0.3;
@@ -96,20 +98,17 @@ class Venu3FaceView extends WatchUi.WatchFace {
         drawDivider(dc, cx, h * 0.35, 120, accent);
 
         // Time sits in the exact center of the screen
-        drawTime(dc, cx, cy, timeStr, clock.sec, accent);
+        drawTime(dc, cx, cy, timeStr, clock.sec, clock.hour, accent);
 
         drawDivider(dc, cx, h * 0.645, 140, accent);
 
         // Heart rate and stress graphs below the time
         var graphH = 44;
-        // Heart rate is higher up where the screen is wider, so it spans more bar slots.
-        // Stress is centered on the same slots so the bars line up column for column.
-        var hrW = 330;
-        var slotW = hrW.toFloat() / HR_BARS;
-        var hrLeft = cx - hrW / 2;
-        drawGraph(dc, hrLeft, (h * 0.67).toNumber(), hrW, graphH, _hrBars, false);
-        var stressLeft = hrLeft + (HR_BARS - STRESS_BARS) / 2 * slotW;
-        drawGraph(dc, stressLeft, (h * 0.785).toNumber(), STRESS_BARS * slotW, graphH, _stressBars, true);
+        // Stress is centered on the heart rate bar slots so the bars line up column for column
+        var hrLeft = cx - HR_BARS * BAR_PX / 2;
+        drawGraph(dc, hrLeft, (h * 0.67).toNumber(), HR_BARS * BAR_PX, graphH, _hrBars, false);
+        var stressLeft = hrLeft + (HR_BARS - STRESS_BARS) / 2 * BAR_PX;
+        drawGraph(dc, stressLeft, (h * 0.785).toNumber(), STRESS_BARS * BAR_PX, graphH, _stressBars, true);
 
         drawDate(dc, cx, h * 0.09, accent);
     }
@@ -178,26 +177,29 @@ class Venu3FaceView extends WatchUi.WatchFace {
                         [x - 3 * k, y + 11 * k], [x + 6 * k, y - 2 * k], [x, y - 2 * k]]);
     }
 
-    // Battery outline and fill level in the clock gradient; the fill turns red when low
-    const BATTERY_W = 30;
-    const BATTERY_H = 16;
+    // Upright battery: outline and fill level (rising from the bottom) in the clock
+    // gradient; the fill turns red when low
+    const BATTERY_W = 14;
+    const BATTERY_H = 26;
     const BATTERY_LOW = 20;
-    private var _batteryFillW as Number = 0;
+    private var _batteryFillH as Number = 0;
 
     private function drawBattery(dc as Dc, cx as Number, y as Numeric) as Void {
         var pct = System.getSystemStats().battery;
-        var fillW = ((BATTERY_W - 6) * pct / 100).toNumber();
+        var fillH = ((BATTERY_H - 6) * pct / 100).toNumber();
+        // Half-height of the icon including the cap on top
+        var half = BATTERY_H / 2 + 4;
         if (pct <= BATTERY_LOW) {
             // Gradient outline only, then the fill in red
-            _batteryFillW = 0;
-            drawGradientIcon(dc, :battery, cx, y, BATTERY_H / 2 + 1);
-            if (fillW > 0) {
+            _batteryFillH = 0;
+            drawGradientIcon(dc, :battery, cx, y, half);
+            if (fillH > 0) {
                 dc.setColor(0xFF2200, Graphics.COLOR_TRANSPARENT);
-                dc.fillRectangle(cx - BATTERY_W / 2 + 3, y - BATTERY_H / 2 + 3, fillW, BATTERY_H - 6);
+                dc.fillRectangle(cx - BATTERY_W / 2 + 3, y + BATTERY_H / 2 - 3 - fillH, BATTERY_W - 6, fillH);
             }
         } else {
-            _batteryFillW = fillW;
-            drawGradientIcon(dc, :battery, cx, y, BATTERY_H / 2 + 1);
+            _batteryFillH = fillH;
+            drawGradientIcon(dc, :battery, cx, y, half);
         }
     }
 
@@ -207,27 +209,30 @@ class Venu3FaceView extends WatchUi.WatchFace {
         dc.setPenWidth(2);
         dc.drawRoundedRectangle(bx, by, BATTERY_W, BATTERY_H, 3);
         dc.setPenWidth(1);
-        dc.fillRectangle(bx + BATTERY_W, by + 4, 3, BATTERY_H - 8);
-        if (_batteryFillW > 0) {
-            dc.fillRectangle(bx + 3, by + 3, _batteryFillW, BATTERY_H - 6);
+        dc.fillRectangle(cx - 3, by - 3, 6, 3);
+        if (_batteryFillH > 0) {
+            dc.fillRectangle(bx + 3, by + BATTERY_H - 3 - _batteryFillH, BATTERY_W - 6, _batteryFillH);
         }
     }
 
     // ---------------------------------------------------------------- Time
 
-    // Large gradient time. To its right, a narrow column: battery on top,
-    // smaller gradient seconds at the bottom.
-    private function drawTime(dc as Dc, cx as Number, cy as Number, timeStr as String, sec as Number, accent as Number) as Void {
+    // Large gradient time. To its right, a narrow column: AM/PM on top (12-hour mode
+    // only), smaller gradient seconds at the bottom.
+    private function drawTime(dc as Dc, cx as Number, cy as Number, timeStr as String, sec as Number,
+            hour as Number, accent as Number) as Void {
         loadTimeFonts();
         var font = _timeFont as Graphics.FontType;
         var secFont = _secondsFont as Graphics.FontType;
+        var ampmFont = _ampmFont as Graphics.FontType;
         var secStr = sec.format("%02d");
+        var ampmStr = System.getDeviceSettings().is24Hour ? "" : (hour < 12 ? "AM" : "PM");
 
         var fh = dc.getFontHeight(font);
         var tw = dc.getTextWidthInPixels(timeStr, font);
         var sw = dc.getTextWidthInPixels(secStr, secFont);
-        var batteryW = BATTERY_W + 5;
-        var colW = sw > batteryW ? sw : batteryW;
+        var aw = dc.getTextWidthInPixels(ampmStr, ampmFont);
+        var colW = sw > aw ? sw : aw;
         var secGap = 6;
         // The whole block (time plus column) is centered on the screen
         var left = cx - (tw + secGap + colW) / 2;
@@ -240,8 +245,14 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var baseline = cy - fh / 2 + Graphics.getFontAscent(font);
         var digitTop = baseline - TIME_FONT_SIZE * DIGIT_HEIGHT;
 
-        // Battery top-aligned with the digits
-        drawBattery(dc, colX + 2 + BATTERY_W / 2, digitTop + BATTERY_H / 2 + 1);
+        // AM/PM top-aligned with the digits, in the same gradient style as the seconds
+        if (!ampmStr.equals("")) {
+            var afh = dc.getFontHeight(ampmFont);
+            // Capital letters in this font stand a little taller than its digits
+            var ampmBaseline = digitTop + AMPM_FONT_SIZE * DIGIT_HEIGHT + 2;
+            var ampmY = (ampmBaseline - Graphics.getFontAscent(ampmFont) + afh / 2).toNumber();
+            drawGradientText(dc, colX + 1, ampmY, ampmFont, ampmStr, aw, accent, 2);
+        }
 
         // Seconds sit on the same baseline as the big digits
         var sfh = dc.getFontHeight(secFont);
@@ -252,12 +263,15 @@ class Venu3FaceView extends WatchUi.WatchFace {
     }
 
     // Month and date on one line, e.g. "NOV 22", in one gradient from pale at the
-    // top of the capitals to accent at their bottom. Drawn once per thin band.
+    // top of the capitals to accent at their bottom (drawn once per thin band),
+    // with the battery to its right. The two are centered together.
     private function drawDate(dc as Dc, cx as Number, y as Numeric, accent as Number) as Void {
         var info = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
         var dateStr = (info.month as String).toUpper() + " " + info.day;
         var font = textFont();
-        var left = cx - dc.getTextWidthInPixels(dateStr, font) / 2;
+        var textW = dc.getTextWidthInPixels(dateStr, font);
+        var gap = 12;
+        var left = cx - (textW + gap + BATTERY_W) / 2;
 
         // Drawn from the top of the line box, placed so the capitals are centered on y
         var capH = TEXT_FONT_SIZE * CAP_HEIGHT;
@@ -269,6 +283,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
             dc.drawText(left, textY, font, dateStr, Graphics.TEXT_JUSTIFY_LEFT);
         }
         dc.clearClip();
+
+        drawBattery(dc, left + textW + gap + BATTERY_W / 2, y + 1);
     }
 
     // Text with a drop shadow and a vertical gradient from a light tint of the accent color into the accent color.
@@ -300,6 +316,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
     // Fall back to built-in fonts on devices without scalable fonts.
     private var _timeFont as Graphics.FontType? = null;
     private var _secondsFont as Graphics.FontType? = null;
+    private var _ampmFont as Graphics.FontType? = null;
 
     private var _textFont as Graphics.FontType? = null;
     private var _rowFont as Graphics.FontType? = null;
@@ -336,6 +353,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
         _timeFont = Graphics.FONT_NUMBER_THAI_HOT;
         _secondsFont = Graphics.FONT_NUMBER_MILD;
+        _ampmFont = Graphics.FONT_SMALL;
         if (Graphics has :getVectorFont) {
             var vf = Graphics.getVectorFont({:face => "YantramanavRegular", :size => TIME_FONT_SIZE});
             if (vf != null) {
@@ -344,6 +362,10 @@ class Venu3FaceView extends WatchUi.WatchFace {
             var sf = Graphics.getVectorFont({:face => "YantramanavRegular", :size => SECONDS_FONT_SIZE});
             if (sf != null) {
                 _secondsFont = sf;
+            }
+            var af = Graphics.getVectorFont({:face => "YantramanavRegular", :size => AMPM_FONT_SIZE});
+            if (af != null) {
+                _ampmFont = af;
             }
         }
     }
