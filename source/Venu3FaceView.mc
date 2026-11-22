@@ -348,7 +348,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
             if (barH < 2) {
                 barH = 2;
             }
-            dc.setColor(isStress ? getStressColor(v) : COLOR_HR, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(isStress ? getStressColor(v) : getHeartRateColor(v), Graphics.COLOR_TRANSPARENT);
             dc.fillRectangle(x + i * barW, top + gh - barH, barW - 1, barH);
         }
     }
@@ -363,6 +363,28 @@ class Venu3FaceView extends WatchUi.WatchFace {
             return 0xFF8000;
         }
         return 0xFF4D00;
+    }
+
+    // Gradient from green (60 bpm and below) through yellow (90) to red (120); purple above 120
+    private function getHeartRateColor(v as Number) as Number {
+        if (v > 120) {
+            return 0xAA33FF;
+        }
+        if (v <= 60) {
+            return 0x00CC44;
+        }
+        if (v <= 90) {
+            return blendColor(0x00CC44, 0xFFCC00, (v - 60) / 30.0);
+        }
+        return blendColor(0xFFCC00, 0xFF2200, (v - 90) / 30.0);
+    }
+
+    // Linear blend between two RGB colors, t from 0.0 (a) to 1.0 (b)
+    private function blendColor(a as Number, b as Number, t as Float) as Number {
+        var r = ((a >> 16) & 0xFF) + ((((b >> 16) & 0xFF) - ((a >> 16) & 0xFF)) * t).toNumber();
+        var g = ((a >> 8) & 0xFF) + ((((b >> 8) & 0xFF) - ((a >> 8) & 0xFF)) * t).toNumber();
+        var bl = (a & 0xFF) + (((b & 0xFF) - (a & 0xFF)) * t).toNumber();
+        return (r << 16) | (g << 8) | bl;
     }
 
     // ---------------------------------------------------------------- Intensity minutes
