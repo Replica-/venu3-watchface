@@ -1,0 +1,10 @@
+<settings>
+    <setting propertyKey="@Properties.AccentColor" title="@Strings.AccentColorTitle">
+        <settingConfig type="list">
+            <listEntry value="43775">@Strings.ColorBlue</listEntry>      <!-- 0x00AAFF -->
+            <listEntry value="16733440">@Strings.ColorOrange</listEntry>  <!-- 0xFF5500 -->
+            <listEntry value="65280">@Strings.ColorGreen</listEntry>      <!-- 0x00FF00 -->
+            <listEntry value="16777215">@Strings.ColorWhite</listEntry>   <!-- 0xFFFFFF -->
+        </settingConfig>
+    </setting>
+</settings>
