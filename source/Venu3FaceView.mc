@@ -89,15 +89,15 @@ class Venu3FaceView extends WatchUi.WatchFace {
         // Time sits in the exact center of the screen
         drawTime(dc, cx, cy, timeStr, clock.sec, accent);
 
-        drawDivider(dc, cx, h * 0.625, 140, accent);
+        drawDivider(dc, cx, h * 0.645, 140, accent);
 
         // Heart rate and stress graphs below the time
-        var graphW = 240;
+        var graphW = 230;
         var graphH = 44;
-        drawGraph(dc, cx - graphW / 2, (h * 0.645).toNumber(), graphW, graphH, _hrBars, false);
-        drawGraph(dc, cx - graphW / 2, (h * 0.76).toNumber(), graphW, graphH, _stressBars, true);
+        drawGraph(dc, cx - graphW / 2, (h * 0.67).toNumber(), graphW, graphH, _hrBars, false);
+        drawGraph(dc, cx - graphW / 2, (h * 0.785).toNumber(), graphW, graphH, _stressBars, true);
 
-        drawBattery(dc, cx, h * 0.9);
+        drawBattery(dc, cx, h * 0.09);
     }
 
     // Accent ring around the edge with a faint inner ring and diamonds at 12, 3, 6 and 9
