@@ -22,4 +22,16 @@
             <listEntry value="10044671">@Strings.ColorPurple</listEntry>      <!-- 0x9944FF -->
         </settingConfig>
     </setting>
+    <setting propertyKey="@Properties.HrGraphStyle" title="@Strings.HrGraphStyleTitle">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.GraphZones</listEntry>
+            <listEntry value="1">@Strings.GraphGradient</listEntry>
+        </settingConfig>
+    </setting>
+    <setting propertyKey="@Properties.StressGraphStyle" title="@Strings.StressGraphStyleTitle">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.GraphZones</listEntry>
+            <listEntry value="1">@Strings.GraphGradient</listEntry>
+        </settingConfig>
+    </setting>
 </settings>

@@ -3,4 +3,7 @@
     <property id="StartColor" type="number">13430527</property>
     <!-- Bottom of every gradient. 0x00AAFF sky blue -->
     <property id="EndColor" type="number">43775</property>
+    <!-- Graph colouring: 0 = coloured zones, 1 = match the gradient -->
+    <property id="HrGraphStyle" type="number">0</property>
+    <property id="StressGraphStyle" type="number">1</property>
 </properties>

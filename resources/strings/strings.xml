@@ -3,6 +3,10 @@
 
     <string id="StartColorTitle">Gradient start colour</string>
     <string id="EndColorTitle">Gradient end colour</string>
+    <string id="HrGraphStyleTitle">Heart rate graph colours</string>
+    <string id="StressGraphStyleTitle">Stress graph colours</string>
+    <string id="GraphZones">Coloured zones</string>
+    <string id="GraphGradient">Match gradient</string>
 
     <string id="ColorPaleBlue">Pale blue</string>
     <string id="ColorWhite">White</string>

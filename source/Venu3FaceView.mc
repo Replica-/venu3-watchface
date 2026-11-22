@@ -47,6 +47,11 @@ class Venu3FaceView extends WatchUi.WatchFace {
     private var _pale as Number = 0xCCEEFF;
     private var _accent as Number = 0x00AAFF;
 
+    // Graph colouring, chosen in the watch face settings: false = coloured zones,
+    // true = the face's gradient colours
+    private var _hrGradient as Boolean = false;
+    private var _stressGradient as Boolean = true;
+
     // True while the watch is in always-on (low power) mode
     private var _isLowPower as Boolean = false;
 
@@ -88,6 +93,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var activity = ActivityMonitor.getInfo();
         _pale = getColorSetting("StartColor", 0xCCEEFF);
         _accent = getColorSetting("EndColor", 0x00AAFF);
+        _hrGradient = getColorSetting("HrGraphStyle", 0) == 1;
+        _stressGradient = getColorSetting("StressGraphStyle", 1) == 1;
         var accent = _accent;
 
         drawBorder(dc, cx, cy, accent);
@@ -258,9 +265,9 @@ class Venu3FaceView extends WatchUi.WatchFace {
         // Seconds sit on the same baseline as the big digits
         var sfh = dc.getFontHeight(secFont);
         var secY = (baseline - Graphics.getFontAscent(secFont) + sfh / 2).toNumber();
-        // Small offsets correct for the space each font leaves before its first glyph
-        // (it varies a pixel or two by digit, so seconds use the average)
-        drawGradientText(dc, colX + 1, secY, secFont, secStr, sw, accent, 2);
+        // Right-aligned with the column (the right edge of AM/PM). The space each font
+        // leaves after its last character varies a pixel or two by digit.
+        drawGradientText(dc, colX + colW - sw, secY, secFont, secStr, sw, accent, 2);
     }
 
     // Month and date on one line, e.g. "NOV 22", in one gradient from pale at the
@@ -654,8 +661,12 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
     }
 
-    // Same bands Garmin uses: rest / low / medium / high
+    // Coloured zones use the same bands Garmin does (rest / low / medium / high). In gradient
+    // mode it is pale when calm, shading to the full end colour at stress 100.
     private function getStressColor(v as Number) as Number {
+        if (_stressGradient) {
+            return blendColor(_pale, _accent, v / 100.0);
+        }
         if (v <= 25) {
             return 0x3399FF;
         } else if (v <= 50) {
@@ -668,6 +679,11 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
     // Gradient from green (60 bpm and below) through yellow (90) to red (120); purple above 120
     private function getHeartRateColor(v as Number) as Number {
+        if (_hrGradient) {
+            // Start colour at 60 bpm and below, end colour at 120 and above
+            var t = (v - 60) / 60.0;
+            return blendColor(_pale, _accent, t < 0 ? 0.0 : (t > 1 ? 1.0 : t));
+        }
         if (v > 120) {
             return 0xAA33FF;
         }
