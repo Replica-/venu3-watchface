@@ -67,20 +67,20 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
 
         drawWeeklyRing(dc, cx, cy, activity, weekGoal);
-        drawWeather(dc, cx, h * 0.12, h * 0.20);
+        drawWeather(dc, cx, h * 0.085, h * 0.15);
+
+        var accent = getAccentColor();
 
         // Date, e.g. "SAT 22 NOV"
         var info = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
         var dateStr = Lang.format("$1$ $2$ $3$", [info.day_of_week, info.day, info.month]).toUpper();
-        dc.setColor(getAccentColor(), Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.27, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, h * 0.21, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        // Time
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.385, Graphics.FONT_NUMBER_MEDIUM, timeStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        drawTime(dc, cx, (h * 0.38).toNumber(), timeStr, accent);
 
         // Heart rate and calories
-        var statsY = h * 0.50;
+        var statsY = h * 0.545;
         dc.setColor(COLOR_HR, Graphics.COLOR_TRANSPARENT);
         drawHeart(dc, cx - 95, statsY, 9);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
@@ -93,12 +93,39 @@ class Venu3FaceView extends WatchUi.WatchFace {
 
         // Heart rate and stress graphs
         var graphW = 150;
-        var graphH = 48;
-        var graphY = (h * 0.577).toNumber();
+        var graphH = 38;
+        var graphY = (h * 0.61).toNumber();
         drawGraph(dc, cx - graphW - 8, graphY, graphW, graphH, _hrBars, false, "HR");
         drawGraph(dc, cx + 8, graphY, graphW, graphH, _stressBars, true, "STRESS");
 
         drawTodayIntensity(dc, cx, h * 0.775, activity.activeMinutesDay, weekGoal);
+    }
+
+    // ---------------------------------------------------------------- Time
+
+    // Large time with a drop shadow and a vertical gradient from white into the accent color.
+    // The gradient is made by drawing the text once per horizontal band, clipped to that band.
+    private function drawTime(dc as Dc, cx as Number, cy as Number, timeStr as String, accent as Number) as Void {
+        var font = Graphics.FONT_NUMBER_THAI_HOT;
+        var justify = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        var fh = dc.getFontHeight(font);
+        var tw = dc.getTextWidthInPixels(timeStr, font);
+
+        dc.setColor(blendColor(accent, 0x000000, 0.65), Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx + 4, cy + 4, font, timeStr, justify);
+
+        // Digits only fill the middle part of the font's line height
+        var glyphTop = cy - fh * 0.3;
+        var glyphH = fh * 0.6;
+        var band = 4;
+        for (var y = cy - fh / 2; y < cy + fh / 2; y += band) {
+            var t = (y - glyphTop) / glyphH;
+            t = t < 0 ? 0.0 : (t > 1 ? 1.0 : t);
+            dc.setClip(cx - tw / 2 - 2, y, tw + 4, band);
+            dc.setColor(blendColor(0xFFFFFF, accent, t.toFloat()), Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, cy, font, timeStr, justify);
+        }
+        dc.clearClip();
     }
 
     // ---------------------------------------------------------------- Low power
@@ -406,7 +433,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var total = moderate + vigorous;
 
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, y, Graphics.FONT_XTINY, "TODAY " + total + " MIN", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(cx, y, Graphics.FONT_XTINY, total + " MIN", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
         var bw = 160;
         var bh = 10;
