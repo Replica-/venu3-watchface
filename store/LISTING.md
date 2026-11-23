@@ -18,8 +18,7 @@ Replica puts everything you check most on one clean, glanceable screen, wrapped 
 - Weather, temperature and wind speed
 - Current heart rate and calories burned
 - Intensity minutes for the last 7 days, one block per day, split into moderate and vigorous
-- Heart rate graph for the last 51 minutes
-- Stress graph for the last 42 minutes
+- Heart rate and stress graphs for the last 2 hours
 
 **Make it yours**
 - Choose the gradient start and end colours

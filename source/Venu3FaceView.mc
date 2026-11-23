@@ -14,12 +14,13 @@ import Toybox.WatchUi;
 
 class Venu3FaceView extends WatchUi.WatchFace {
 
-    // Both graphs use 1.5-minute bars of the same pixel width on one shared grid so
-    // their bars line up. Heart rate shows 51 minutes; the narrower stress graph 42.
-    const BAR_SECONDS = 90;
-    const BAR_PX = 8.25;
-    const HR_BARS = 34;
-    const STRESS_BARS = 28;
+    // Both graphs use bars of the same time and pixel width on one shared grid so
+    // their bars line up. Both show the last 2 hours: 45 bars of 160 seconds.
+    const BAR_SECONDS = 160;
+    // 45 bars of 6 px keep the bottom graph's lower corners inside the round screen
+    const BAR_PX = 6.0;
+    const HR_BARS = 45;
+    const STRESS_BARS = HR_BARS;
 
     // Height in pixels of every icon in the icon row, and that row's text size
     const ICON_H = 28;
@@ -58,8 +59,8 @@ class Venu3FaceView extends WatchUi.WatchFace {
     private var _hrLow as Number = 60;
     private var _hrHigh as Number = 120;
     private var _stressRest as Number = 25;
-    private var _stressLow as Number = 50;
-    private var _stressMedium as Number = 75;
+    private var _stressLow as Number = 40;
+    private var _stressMedium as Number = 60;
 
     // True while the watch is in always-on (low power) mode
     private var _isLowPower as Boolean = false;
@@ -76,6 +77,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
     private var _frameMinute as Number = -1;
 
     // Where the seconds go, worked out when the frame is drawn
+    // Horizontal center of the seconds
     private var _secX as Number = 0;
     private var _secY as Number = 0;
 
@@ -141,7 +143,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
         var activity = ActivityMonitor.getInfo();
         applyColorMode(clock);
         _hrGradient = getColorSetting("HrGraphStyle", 0) == 1;
-        _stressGradient = getColorSetting("StressGraphStyle", 1) == 1;
+        _stressGradient = getColorSetting("StressGraphStyle", 0) == 1;
         loadRanges();
         var accent = _accent;
 
@@ -159,12 +161,14 @@ class Venu3FaceView extends WatchUi.WatchFace {
         drawDivider(dc, cx, h * 0.665, 140, accent);
 
         // Heart rate and stress graphs below the time
-        var graphH = 44;
+        var graphH = 38;
+        var graphGap = 6;
+        var hrTop = (h * 0.68).toNumber();
         // Stress is centered on the heart rate bar slots so the bars line up column for column
         var hrLeft = cx - HR_BARS * BAR_PX / 2;
-        drawGraph(dc, hrLeft, (h * 0.69).toNumber(), HR_BARS * BAR_PX, graphH, _hrBars, false);
+        drawGraph(dc, hrLeft, hrTop, HR_BARS * BAR_PX, graphH, _hrBars, false);
         var stressLeft = hrLeft + (HR_BARS - STRESS_BARS) / 2 * BAR_PX;
-        drawGraph(dc, stressLeft, (h * 0.8).toNumber(), STRESS_BARS * BAR_PX, graphH, _stressBars, true);
+        drawGraph(dc, stressLeft, hrTop + graphH + graphGap, STRESS_BARS * BAR_PX, graphH, _stressBars, true);
 
         drawDate(dc, cx, h * 0.09, accent);
     }
@@ -311,11 +315,10 @@ class Venu3FaceView extends WatchUi.WatchFace {
             drawGradientText(dc, colX + 1, ampmY, ampmFont, ampmStr, aw, accent, 2);
         }
 
-        // Seconds sit on the same baseline as the big digits, right-aligned with the
-        // column (the right edge of AM/PM)
+        // Seconds sit on the same baseline as the big digits, centered under AM/PM
         var sfh = dc.getFontHeight(secFont);
         _secY = (baseline - Graphics.getFontAscent(secFont) + sfh / 2).toNumber();
-        _secX = colX + colW;
+        _secX = ampmStr.equals("") ? colX + sw / 2 : colX + 1 + aw / 2;
     }
 
     // The seconds, drawn straight to the screen every second
@@ -323,11 +326,11 @@ class Venu3FaceView extends WatchUi.WatchFace {
         loadTimeFonts();
         var secFont = _secondsFont as Graphics.FontType;
         var secStr = sec.format("%02d");
-        var sw = dc.getTextWidthInPixels(secStr, secFont);
         if (dc has :setAntiAlias) {
             dc.setAntiAlias(true);
         }
-        drawGradientText(dc, _secX - sw, _secY, secFont, secStr, sw, _accent, 2);
+        var w = dc.getTextWidthInPixels(secStr, secFont);
+        drawGradientText(dc, _secX - w / 2, _secY, secFont, secStr, w, _accent, 2);
     }
 
     // Month and date on one line, e.g. "NOV 22", in one gradient from pale at the
@@ -626,7 +629,7 @@ class Venu3FaceView extends WatchUi.WatchFace {
             _hrBars = fillSingleGaps(bucketHistory(SensorHistory.getHeartRateHistory(options), HR_BARS));
         }
         if (SensorHistory has :getStressHistory) {
-            // Stress is sampled about every 3 minutes, so every other bar is filled in
+            // Stress is sampled about every 3 minutes, so the odd empty bar is filled in
             _stressBars = fillSingleGaps(bucketHistory(SensorHistory.getStressHistory(options), STRESS_BARS));
         }
     }
@@ -740,29 +743,33 @@ class Venu3FaceView extends WatchUi.WatchFace {
         }
 
         _stressRest = getColorSetting("StressRest", 25);
-        _stressLow = getColorSetting("StressLow", 50);
-        _stressMedium = getColorSetting("StressMedium", 75);
+        _stressLow = getColorSetting("StressLow", 40);
+        _stressMedium = getColorSetting("StressMedium", 60);
         if (!(_stressRest < _stressLow && _stressLow < _stressMedium)) {
             _stressRest = 25;
-            _stressLow = 50;
-            _stressMedium = 75;
+            _stressLow = 40;
+            _stressMedium = 60;
         }
     }
 
-    // Coloured zones use bands like Garmin's (rest / low / medium / high). In gradient mode
-    // it is pale at the rest level and below, shading to the full end colour at medium.
+    // Coloured zones use the same scale as the heart rate graph: green at rest and below,
+    // shading to yellow at the top of low, to red at the top of medium, purple when high.
+    // In gradient mode it is pale at the rest level and below, shading to the full end
+    // colour at medium.
     private function getStressColor(v as Number) as Number {
         if (_stressGradient) {
             return blendColor(_pale, _accent, clamp01((v - _stressRest).toFloat() / (_stressMedium - _stressRest)));
         }
-        if (v <= _stressRest) {
-            return 0x3399FF;
-        } else if (v <= _stressLow) {
-            return 0xFFB366;
-        } else if (v <= _stressMedium) {
-            return 0xFF8000;
+        if (v > _stressMedium) {
+            return 0xAA33FF;
         }
-        return 0xFF4D00;
+        if (v <= _stressRest) {
+            return 0x00CC44;
+        }
+        if (v <= _stressLow) {
+            return blendColor(0x00CC44, 0xFFCC00, (v - _stressRest).toFloat() / (_stressLow - _stressRest));
+        }
+        return blendColor(0xFFCC00, 0xFF2200, (v - _stressLow).toFloat() / (_stressMedium - _stressLow));
     }
 
     // Green at or below the low value, through yellow halfway, to red at the high value;

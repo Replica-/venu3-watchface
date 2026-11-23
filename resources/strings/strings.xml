@@ -38,4 +38,17 @@
     <string id="StressRestTitle">Stress: rest up to</string>
     <string id="StressLowTitle">Stress: low up to</string>
     <string id="StressMediumTitle">Stress: medium up to</string>
+
+    <!-- Shorter titles for the on-watch settings menu -->
+    <string id="MenuColorMode">Colour mode</string>
+    <string id="MenuStartColor">Start colour</string>
+    <string id="MenuEndColor">End colour</string>
+    <string id="MenuHrGraph">HR graph</string>
+    <string id="MenuStressGraph">Stress graph</string>
+    <string id="MenuHrRange">HR range</string>
+    <string id="MenuHrLow">HR green up to</string>
+    <string id="MenuHrHigh">HR red from</string>
+    <string id="MenuStressRest">Stress rest to</string>
+    <string id="MenuStressLow">Stress low to</string>
+    <string id="MenuStressMedium">Stress med. to</string>
 </strings>

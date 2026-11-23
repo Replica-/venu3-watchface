@@ -4,7 +4,8 @@ A Garmin Connect IQ watch face for the **Venu 3** (454×454 AMOLED).
 
 A large gradient clock with date, battery, weather, wind, heart rate,
 calories, rolling 7-day intensity minutes, and heart rate and stress graphs.
-Colours are customisable in the watch face settings. In always-on mode it
+Colours and graph ranges can be changed in Garmin Connect, or on the watch:
+long-press the face, then *Customize*. In always-on mode it
 switches to a dim, minimal time display that shifts position every minute to
 protect the AMOLED screen from burn-in.
 
@@ -60,6 +61,7 @@ monkey.jungle             Build config
 source/
   Venu3FaceApp.mc         App entry point
   Venu3FaceView.mc        All drawing code
+  SettingsMenu.mc         On-watch settings menu (long-press, Customize)
 resources/
   drawables/              Launcher icon
   strings/                Text shown to the user
